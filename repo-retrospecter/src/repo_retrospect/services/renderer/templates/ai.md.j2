@@ -1,0 +1,40 @@
+{# AI-facing structured knowledge (PRD F4 / TC-F4-01 / TC-F4-02).
+   Required per item: '### Rule:', '**Anti-pattern**:', code-block example,
+   and at least one https://github.com/ source URL (filtered upstream). -#}
+# AI 向けナレッジ — {{ cache.repo }}
+
+- **schema_version**: {{ cache.schema_version }}
+- **generated_at**: {{ cache.generated_at.isoformat() }}
+- **対象 PR 数**: {{ cache.pull_requests | length }}
+- **ナレッジ数**: {{ knowledge | length }}
+
+## Knowledge
+
+{% if knowledge %}
+{% for k in knowledge %}
+### Rule: {{ k.rule or "(no rule)" }}
+
+{% if k.themes %}
+- **Themes**: {{ k.themes | join(", ") }}
+{% endif %}
+{% if k.anti_pattern %}
+**Anti-pattern**: {{ k.anti_pattern }}
+
+{% endif %}
+{% if k.example %}
+**Example**:
+
+```
+{{ k.example }}
+```
+
+{% endif %}
+**Sources**:
+{% for url in k.source_urls %}
+- {{ url }}
+{% endfor %}
+
+{% endfor %}
+{% else %}
+_出典付きのナレッジは抽出されませんでした。_
+{% endif %}

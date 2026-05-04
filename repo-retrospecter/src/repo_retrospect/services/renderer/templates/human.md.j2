@@ -1,0 +1,58 @@
+{# Human-facing retrospective note (PRD F3 / TC-F3-01).
+   Required headings: '# 振り返り', '## 主要設計判断', '## 頻出レビュー指摘 Top'. -#}
+# 振り返り — {{ cache.repo }}
+
+- **生成日時**: {{ cache.generated_at.isoformat() }}
+- **対象 PR 数**: {{ cache.pull_requests | length }}
+- **抽出ナレッジ数**: {{ knowledge | length }}
+
+## 主要設計判断
+
+{% if design_decisions %}
+{% for k in design_decisions %}
+### {{ k.rule or "(無題)" }}
+
+{% if k.anti_pattern %}
+- **避けるべき**: {{ k.anti_pattern }}
+{% endif %}
+{% if k.example %}
+- **例**: {{ k.example }}
+{% endif %}
+{% if k.source_urls %}
+- **出典**:
+{% for url in k.source_urls %}
+  - {{ url }}
+{% endfor %}
+{% endif %}
+
+{% endfor %}
+{% else %}
+_該当する設計判断は抽出されませんでした。_
+
+{% endif %}
+## 頻出レビュー指摘 Top {{ top_n }}
+
+{% if top_review_rules %}
+{% for k in top_review_rules %}
+{{ loop.index }}. **{{ k.rule or "(無題)" }}**
+{% if k.anti_pattern %}
+   - 避けるべき: {{ k.anti_pattern }}
+{% endif %}
+{% for url in k.source_urls %}
+   - {{ url }}
+{% endfor %}
+
+{% endfor %}
+{% else %}
+_頻出レビュー指摘は抽出されませんでした。_
+
+{% endif %}
+## 取得した PR 一覧
+
+{% if cache.pull_requests %}
+{% for pr in cache.pull_requests %}
+- [#{{ pr.number }} {{ pr.title }}]({{ pr.url }}) — {{ pr.author }}
+{% endfor %}
+{% else %}
+_対象期間に PR がありませんでした。_
+{% endif %}
