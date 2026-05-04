@@ -610,3 +610,235 @@ class TestHasGithubSource:
         assert not _has_github_source(
             _make_knowledge(source_urls=["https://attacker.com/?u=https://github.com/foo"])
         )
+
+    def test_false_for_http_scheme_github_url(self) -> None:
+        # Security-relevant: enforce HTTPS. A plain http:// URL must be rejected
+        # so that an attacker-controlled redirect can't masquerade as a citation.
+        assert not _has_github_source(
+            _make_knowledge(source_urls=["http://github.com/owner/repo/pull/1"])
+        )
+
+    def test_false_for_github_subdomain_url(self) -> None:
+        # Boundary: only the canonical https://github.com/ host counts. A
+        # subdomain like api.github.com is a different origin and must not pass.
+        assert not _has_github_source(
+            _make_knowledge(source_urls=["https://api.github.com/repos/owner/repo/pulls/1"])
+        )
+
+
+# ---------------------------------------------------------------------------
+# Renderer Protocol — runtime structural typing
+# ---------------------------------------------------------------------------
+
+
+class TestRendererProtocol:
+    def test_object_without_render_method_is_not_a_renderer(self) -> None:
+        # runtime_checkable Protocol must reject objects missing `render`.
+        class Bare:
+            pass
+
+        assert not isinstance(Bare(), Renderer)
+
+
+# ---------------------------------------------------------------------------
+# HumanRenderer — additional boundary / multi-theme cases
+# ---------------------------------------------------------------------------
+
+
+class TestHumanRendererBoundaries:
+    def test_top_n_one_keeps_only_first_review_rule(self, tmp_path: Path) -> None:
+        # Boundary: minimum valid top_n. With 2 review_rule items, exactly 1 survives.
+        cache = _make_cache(
+            knowledge=[
+                _make_knowledge(
+                    rule="winner",
+                    source_urls=["https://github.com/o/r/pull/1", "https://github.com/o/r/pull/2"],
+                    themes=["review_rule"],
+                ),
+                _make_knowledge(
+                    rule="loser",
+                    source_urls=["https://github.com/o/r/pull/3"],
+                    themes=["review_rule"],
+                ),
+            ]
+        )
+        out = tmp_path / "out.md"
+
+        HumanRenderer(top_n=1).render(cache, out)
+
+        text = out.read_text(encoding="utf-8")
+        review_block = text.split("## 取得した PR 一覧")[0].split("## 頻出レビュー指摘")[1]
+        assert "winner" in review_block
+        assert "loser" not in review_block
+
+    def test_top_n_larger_than_review_rule_count_keeps_all(self, tmp_path: Path) -> None:
+        # Boundary: top_n > available items → no truncation, no padding.
+        cache = _make_cache(
+            knowledge=[
+                _make_knowledge(rule="r1", themes=["review_rule"]),
+                _make_knowledge(rule="r2", themes=["review_rule"]),
+            ]
+        )
+        out = tmp_path / "out.md"
+
+        HumanRenderer(top_n=99).render(cache, out)
+
+        text = out.read_text(encoding="utf-8")
+        review_block = text.split("## 取得した PR 一覧")[0].split("## 頻出レビュー指摘")[1]
+        assert "r1" in review_block
+        assert "r2" in review_block
+        assert "3. **" not in review_block
+
+    def test_multi_theme_knowledge_appears_in_both_sections(self, tmp_path: Path) -> None:
+        # An item tagged with both themes is intentionally listed twice — it
+        # is both a design decision AND a frequent review rule.
+        cache = _make_cache(
+            knowledge=[
+                _make_knowledge(
+                    rule="dual-tagged",
+                    themes=["design_decision", "review_rule"],
+                )
+            ]
+        )
+        out = tmp_path / "out.md"
+
+        HumanRenderer().render(cache, out)
+
+        text = out.read_text(encoding="utf-8")
+        decisions_block = text.split("## 頻出レビュー指摘")[0]
+        review_block = text.split("## 取得した PR 一覧")[0].split("## 頻出レビュー指摘")[1]
+        assert "dual-tagged" in decisions_block
+        assert "dual-tagged" in review_block
+
+    def test_empty_rule_falls_back_to_placeholder(self, tmp_path: Path) -> None:
+        # decision-defaults.md §null/欠損値: empty string must not produce a
+        # blank heading; the template substitutes "(無題)".
+        cache = _make_cache(
+            knowledge=[_make_knowledge(rule="", themes=["design_decision"])]
+        )
+        out = tmp_path / "out.md"
+
+        HumanRenderer().render(cache, out)
+
+        decisions_block = out.read_text(encoding="utf-8").split("## 頻出レビュー指摘")[0]
+        assert "(無題)" in decisions_block
+
+    def test_no_design_decisions_renders_fallback_message(self, tmp_path: Path) -> None:
+        # Equivalence: design_decisions == [] but knowledge non-empty.
+        cache = _make_cache(
+            knowledge=[_make_knowledge(rule="r", themes=["review_rule"])]
+        )
+        out = tmp_path / "out.md"
+
+        HumanRenderer().render(cache, out)
+
+        decisions_block = out.read_text(encoding="utf-8").split("## 頻出レビュー指摘")[0]
+        assert "該当する設計判断は抽出されませんでした" in decisions_block
+
+    def test_no_review_rules_renders_fallback_message(self, tmp_path: Path) -> None:
+        cache = _make_cache(
+            knowledge=[_make_knowledge(rule="r", themes=["design_decision"])]
+        )
+        out = tmp_path / "out.md"
+
+        HumanRenderer().render(cache, out)
+
+        text = out.read_text(encoding="utf-8")
+        review_block = text.split("## 取得した PR 一覧")[0].split("## 頻出レビュー指摘")[1]
+        assert "頻出レビュー指摘は抽出されませんでした" in review_block
+
+    def test_knowledge_count_includes_unrelated_themes(self, tmp_path: Path) -> None:
+        # The抽出ナレッジ数 metric counts ALL knowledge, even items whose
+        # themes don't surface in any visible section (bug_pattern here).
+        cache = _make_cache(
+            knowledge=[
+                _make_knowledge(rule="a", themes=["design_decision"]),
+                _make_knowledge(rule="b", themes=["bug_pattern"]),
+                _make_knowledge(rule="c", themes=["review_rule"]),
+            ]
+        )
+        out = tmp_path / "out.md"
+
+        HumanRenderer().render(cache, out)
+
+        assert "抽出ナレッジ数**: 3" in out.read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# AiRenderer — additional content / equivalence cases
+# ---------------------------------------------------------------------------
+
+
+class TestAiRendererAdditional:
+    def test_renders_with_empty_knowledge_list(self, tmp_path: Path) -> None:
+        # Equivalence with knowledge=None: both produce the no-knowledge state.
+        cache = _make_cache(knowledge=[])
+        out = tmp_path / "ai.md"
+
+        AiRenderer().render(cache, out)
+
+        text = out.read_text(encoding="utf-8")
+        assert "### Rule:" not in text
+        assert "ナレッジ数**: 0" in text
+
+    def test_omits_themes_line_when_themes_empty(self, tmp_path: Path) -> None:
+        # decision-defaults.md §null/欠損値: empty themes list → no "Themes" line.
+        # Construct Knowledge directly so the helper doesn't substitute its default.
+        cache = _make_cache(
+            knowledge=[
+                Knowledge(
+                    rule="r",
+                    anti_pattern="",
+                    example="",
+                    source_urls=["https://github.com/o/r/pull/1"],
+                    themes=[],
+                )
+            ]
+        )
+        out = tmp_path / "ai.md"
+
+        AiRenderer().render(cache, out)
+
+        assert "**Themes**" not in out.read_text(encoding="utf-8")
+
+    def test_includes_schema_version_in_output(self, tmp_path: Path) -> None:
+        # Downstream consumers key off schema_version; it must round-trip.
+        cache = _make_cache(knowledge=[_make_knowledge()])
+        out = tmp_path / "ai.md"
+
+        AiRenderer().render(cache, out)
+
+        assert f"**schema_version**: {CACHE_SCHEMA_VERSION}" in out.read_text(encoding="utf-8")
+
+    def test_preserves_input_order_after_filtering(self, tmp_path: Path) -> None:
+        # The renderer is order-preserving on the kept subset; consumers rely
+        # on classifier-emitted ordering for ranking-by-recency.
+        cache = _make_cache(
+            knowledge=[
+                _make_knowledge(rule="first-kept", source_urls=["https://github.com/o/r/pull/1"]),
+                _make_knowledge(rule="dropped", source_urls=[]),
+                _make_knowledge(rule="second-kept", source_urls=["https://github.com/o/r/pull/2"]),
+            ]
+        )
+        out = tmp_path / "ai.md"
+
+        AiRenderer().render(cache, out)
+
+        text = out.read_text(encoding="utf-8")
+        assert text.index("first-kept") < text.index("second-kept")
+        assert "dropped" not in text
+
+    def test_empty_rule_falls_back_to_placeholder(self, tmp_path: Path) -> None:
+        cache = _make_cache(
+            knowledge=[
+                _make_knowledge(
+                    rule="",
+                    source_urls=["https://github.com/o/r/pull/1"],
+                )
+            ]
+        )
+        out = tmp_path / "ai.md"
+
+        AiRenderer().render(cache, out)
+
+        assert "### Rule: (no rule)" in out.read_text(encoding="utf-8")
