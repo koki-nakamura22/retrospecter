@@ -73,9 +73,9 @@ cp .env.example .env
 ```bash
 # Fetch the last 30 merged PRs + 30 default-branch commits, classify, render both outputs
 uv run repo-retrospect run \
-  --repo koki-nakamura22/django-n1-ckecker \
-  --out docs/learnings/2026-05.md \
-  --ai-out docs/learnings/ai-knowledge.md
+  --repo OWNER/example-repo \
+  --out learnings/2026-05.md \
+  --ai-out learnings/ai-knowledge.md
 ```
 
 That single call:
@@ -199,54 +199,6 @@ Drop the AI file (or the relevant section) into `CLAUDE.md` / a `SKILL.md` and y
 - Anthropic API key: read from `ANTHROPIC_API_KEY` only. Redacted from all logs (decision-defaults §ログ).
 - PII: GitHub `login` is kept; `email` and other identifying fields are stripped before reaching the cache or output.
 - LLM data flow: PR bodies and comment text are sent to Anthropic for classification. Use `--no-loose-commits` and the `themes` config to scope what gets sent. **Don't run this on a repo whose PR contents you cannot share with a third-party LLM provider.**
-
-## Architecture
-
-```
-CLI (click)
-  → Pipeline (run / fetch / generate)
-      → Services
-          ├── fetcher    (gh CLI subprocess)
-          ├── classifier (Anthropic SDK + prompt caching)
-          └── renderer   (jinja2 templates: human / ai)
-      → Cache (Pydantic-backed JSON, ADR-0003 unified)
-```
-
-Detailed design lives under `docs/`:
-
-- `docs/product-requirements.md` — PRD (KPI, MVP scope, NFR)
-- `docs/architecture.md` — tech stack, layered design, CI policy
-- `docs/adr/000{1..5}-*.md` — design decisions (Python+uv, gh wrapper, unified cache, renderer plugin, incremental append)
-- `docs/decision-defaults.md` — the "when in doubt do X" defaults
-- `docs/test-cases/acceptance.md` — Given/When/Then acceptance cases (TC-F1 .. TC-F5, TC-PERF, TC-SEC)
-- `docs/traceability.md` — requirement ↔ design ↔ test mapping
-
-> `docs/` is intentionally `.gitignore`d in this repository — it is treated as flow information for the author. The doc set is kept locally; design decisions worth public review are codified as ADRs and PRD-level notes referenced from this README.
-
-## Development
-
-```bash
-uv sync
-uv run pytest                 # default suite (excludes slow markers)
-uv run pyright src/           # type-check (strict mode)
-uv run ruff check src/ tests/ # lint
-uv run ruff format src/ tests/
-
-# Run the slow / perf / security cases manually
-uv run pytest -m slow
-```
-
-CI (`.github/workflows/ci.yml`) runs lint / typecheck / test on a Python `[3.11, 3.12, 3.13]` matrix. The matrix is intentionally `os: [ubuntu-latest]` only today but is structured so adding `macos-latest` is a one-line change. Composite action `.github/actions/setup-uv/` keeps the `uv install + uv sync + cache` block reusable.
-
-## Roadmap
-
-- [x] F1–F4 MVP: fetch / classify / render two streams
-- [x] F1+ loose-commit support (PR-less commits via `gh api repos/X/commits`)
-- [x] F5 incremental updates (`--append`)
-- [ ] F6 SKILL.md / CLAUDE.md auto-update proposals (diff-style suggestion)
-- [ ] F7 GitHub Actions runner mode (post weekly retros to an Issue / Discussion)
-- [ ] Multi-language renderer templates (`--lang ja`)
-- [ ] Multi-repo / org-wide retrospectives
 
 ## License
 
