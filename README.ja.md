@@ -81,7 +81,7 @@ family 共通の必須ルール:
 
 各アプリは独立して install / 実行可能です。アプリごとの README を参照:
 
-- [repo-retrospecter — README](./repo-retrospecter/README.md)
+- [repo-retrospecter — README](./repo-retrospecter/README.ja.md)
 
 ## Contributing
 
