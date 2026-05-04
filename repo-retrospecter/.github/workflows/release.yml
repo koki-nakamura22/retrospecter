@@ -1,0 +1,19 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # TODO: build distributions with `uv build` and publish to PyPI / create GitHub Release.
+      # TODO: gate the publish step on the reusable CI workflow (workflow_call from ci.yml) so
+      #       lint / typecheck / test must pass on the tagged commit before publishing.
+      # TODO: configure trusted publishing (OIDC) instead of long-lived PyPI tokens.
+      - name: Placeholder
+        run: echo "release workflow placeholder — see TODOs above"

@@ -1,0 +1,34 @@
+name: Setup uv + Python
+description: Install uv, restore the uv cache, set up Python, and sync the locked dev environment.
+
+inputs:
+  python-version:
+    description: Python version to set up (matches actions/setup-python).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        enable-cache: true
+        cache-dependency-glob: uv.lock
+
+    - name: Set up Python ${{ inputs.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Restore uv cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/uv
+        key: uv-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles('uv.lock') }}
+        restore-keys: |
+          uv-${{ runner.os }}-py${{ inputs.python-version }}-
+          uv-${{ runner.os }}-
+
+    - name: Sync locked dependencies
+      shell: bash
+      run: uv sync --locked --all-extras --dev

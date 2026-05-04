@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint (ruff) — py${{ matrix.python-version }} / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup uv + Python
+        uses: ./.github/actions/setup-uv
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: ruff check
+        run: uv run ruff check src/ tests/
+      - name: ruff format --check
+        run: uv run ruff format --check src/ tests/
+
+  typecheck:
+    name: typecheck (pyright) — py${{ matrix.python-version }} / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup uv + Python
+        uses: ./.github/actions/setup-uv
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: pyright
+        run: uv run pyright
+
+  test:
+    name: test (pytest) — py${{ matrix.python-version }} / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup uv + Python
+        uses: ./.github/actions/setup-uv
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: pytest (default; excludes slow)
+        run: uv run pytest -q -m "not slow"
+
+  test-slow:
+    name: test (slow) — py${{ matrix.python-version }} / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup uv + Python
+        uses: ./.github/actions/setup-uv
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: pytest (slow only)
+        run: uv run pytest -q -m "slow"

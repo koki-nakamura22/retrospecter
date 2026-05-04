@@ -297,7 +297,8 @@
           "trigger_when": "verification_passed"
         }
       ],
-      "status": "pending"
+      "status": "completed",
+      "completed_at": "2026-05-04T10:57:30Z"
     },
     {
       "id": "T010",
@@ -317,7 +318,8 @@
         "docs/architecture.md",
         "docs/decision-defaults.md"
       ],
-      "status": "pending"
+      "status": "completed",
+      "completed_at": "2026-05-04T11:30:00Z"
     }
   ]
 }
