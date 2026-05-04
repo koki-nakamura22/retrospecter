@@ -34,11 +34,13 @@ def run_pipeline(
     repo: str,
     cache_path: Path,
     last: int | None = None,
+    last_commits: int | None = None,
     since: date | str | None = None,
     human_out: Path | None = None,
     ai_out: Path | None = None,
     themes: list[str] | None = None,
     include_loose_commits: bool = True,
+    append: bool = False,
     timeout: float = GH_TIMEOUT_SEC,
 ) -> RunSummary:
     """Fetch then generate in a single call.
@@ -51,8 +53,10 @@ def run_pipeline(
         repo=repo,
         cache_path=cache_path,
         last=last,
+        last_commits=last_commits,
         since=since,
         include_loose_commits=include_loose_commits,
+        append=append,
         timeout=timeout,
     )
     generate_summary = run_generate(

@@ -32,6 +32,7 @@ class Settings(BaseModel):
 
     repo: str | None = None
     last: int | None = None
+    last_commits: int | None = None
     since: date | None = None
     out: Path | None = None
     ai_out: Path | None = None

@@ -302,6 +302,7 @@ def classify_pull_requests(
     batch_size: int = DEFAULT_BATCH_SIZE,
     max_tokens: int = DEFAULT_MAX_TOKENS,
     timeout: float = DEFAULT_TIMEOUT_SEC,
+    exclude_urls: set[str] | None = None,
 ) -> list[Knowledge]:
     """Classify ``pull_requests`` and extract Knowledge using Claude.
 
@@ -333,9 +334,14 @@ def classify_pull_requests(
 
     api_client = client if client is not None else _build_client(timeout)
 
+    skip = exclude_urls or set()
+    targets = [pr for pr in pull_requests if pr.url not in skip]
+    if not targets:
+        return []
+
     knowledge: list[Knowledge] = []
-    for start in range(0, len(pull_requests), batch_size):
-        batch = pull_requests[start : start + batch_size]
+    for start in range(0, len(targets), batch_size):
+        batch = targets[start : start + batch_size]
         user_text = _build_user_message(batch, resolved_themes)
         messages: list[MessageParam] = [{"role": "user", "content": user_text}]
         try:
@@ -409,6 +415,7 @@ def classify_commits(
     batch_size: int = DEFAULT_BATCH_SIZE,
     max_tokens: int = DEFAULT_MAX_TOKENS,
     timeout: float = DEFAULT_TIMEOUT_SEC,
+    exclude_urls: set[str] | None = None,
 ) -> list[Knowledge]:
     """Classify loose (PR-less) commits and extract Knowledge using Claude.
 
@@ -425,9 +432,14 @@ def classify_commits(
     system_blocks = _build_system_blocks(resolved_themes)
     api_client = client if client is not None else _build_client(timeout)
 
+    skip = exclude_urls or set()
+    targets = [c for c in commits if c.url not in skip]
+    if not targets:
+        return []
+
     knowledge: list[Knowledge] = []
-    for start in range(0, len(commits), batch_size):
-        batch = commits[start : start + batch_size]
+    for start in range(0, len(targets), batch_size):
+        batch = targets[start : start + batch_size]
         user_text = _build_user_message_for_commits(batch, resolved_themes)
         messages: list[MessageParam] = [{"role": "user", "content": user_text}]
         try:

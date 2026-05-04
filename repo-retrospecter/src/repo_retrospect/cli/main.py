@@ -94,7 +94,13 @@ def cli() -> None:
 @cli.command("run")
 @click.option("--repo", type=str, default=None, help="GitHub repo (owner/name).")
 @click.option("--last", type=int, default=None, help="Fetch the most recent N merged PRs.")
-@click.option("--since", type=str, default=None, help="Fetch PRs merged on/after YYYY-MM-DD.")
+@click.option(
+    "--last-commits",
+    type=int,
+    default=None,
+    help="Inspect the most recent N default-branch commits for loose-commit detection.",
+)
+@click.option("--since", type=str, default=None, help="Fetch PRs / commits on/after YYYY-MM-DD.")
 @click.option(
     "--out",
     type=click.Path(dir_okay=False, path_type=Path),
@@ -125,11 +131,17 @@ def cli() -> None:
     is_flag=True,
     help="Skip default-branch commits not associated with any PR.",
 )
+@click.option(
+    "--append",
+    is_flag=True,
+    help="Incremental update (ADR-0005): merge new PRs/commits into the existing cache.",
+)
 @click.option("--verbose", "-v", is_flag=True, help="Enable DEBUG logging.")
 @click.option("--quiet", "-q", is_flag=True, help="Limit logging to WARN+.")
 def cmd_run(
     repo: str | None,
     last: int | None,
+    last_commits: int | None,
     since: str | None,
     out: Path | None,
     ai_out: Path | None,
@@ -137,6 +149,7 @@ def cmd_run(
     config: Path | None,
     force: bool,
     no_loose_commits: bool,
+    append: bool,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -149,24 +162,32 @@ def cmd_run(
         raise click.UsageError("--repo is required (or set in --config).")
 
     last_value = last if last is not None else settings.last
+    last_commits_value = (
+        last_commits if last_commits is not None else settings.last_commits
+    )
     since_value = _coerce_since(since if since is not None else settings.since)
     out_value = out or settings.out
     ai_out_value = ai_out or settings.ai_out
     cache_value = cache or settings.cache or DEFAULT_CACHE_PATH
 
-    _check_overwrite(out_value, force=force)
-    _check_overwrite(ai_out_value, force=force)
+    if not append:
+        # In append mode the cache is intentionally read+rewritten; skip
+        # the overwrite guard so users don't need --force every time.
+        _check_overwrite(out_value, force=force)
+        _check_overwrite(ai_out_value, force=force)
 
     try:
         summary = run_pipeline(
             repo=repo_value,
             cache_path=cache_value,
             last=last_value,
+            last_commits=last_commits_value,
             since=since_value,
             human_out=out_value,
             ai_out=ai_out_value,
             themes=settings.themes,
             include_loose_commits=not no_loose_commits,
+            append=append,
         )
     except AuthError as exc:
         raise click.ClickException(f"gh authentication required: {exc}") from exc
@@ -185,7 +206,13 @@ def cmd_run(
 @cli.command("fetch")
 @click.option("--repo", type=str, default=None, help="GitHub repo (owner/name).")
 @click.option("--last", type=int, default=None, help="Fetch the most recent N merged PRs.")
-@click.option("--since", type=str, default=None, help="Fetch PRs merged on/after YYYY-MM-DD.")
+@click.option(
+    "--last-commits",
+    type=int,
+    default=None,
+    help="Inspect the most recent N default-branch commits for loose-commit detection.",
+)
+@click.option("--since", type=str, default=None, help="Fetch PRs / commits on/after YYYY-MM-DD.")
 @click.option(
     "--cache",
     type=click.Path(dir_okay=False, path_type=Path),
@@ -204,16 +231,23 @@ def cmd_run(
     is_flag=True,
     help="Skip default-branch commits not associated with any PR.",
 )
+@click.option(
+    "--append",
+    is_flag=True,
+    help="Incremental update (ADR-0005): merge new PRs/commits into the existing cache.",
+)
 @click.option("--verbose", "-v", is_flag=True, help="Enable DEBUG logging.")
 @click.option("--quiet", "-q", is_flag=True, help="Limit logging to WARN+.")
 def cmd_fetch(
     repo: str | None,
     last: int | None,
+    last_commits: int | None,
     since: str | None,
     cache: Path | None,
     config: Path | None,
     force: bool,
     no_loose_commits: bool,
+    append: bool,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -226,18 +260,24 @@ def cmd_fetch(
         raise click.UsageError("--repo is required (or set in --config).")
 
     last_value = last if last is not None else settings.last
+    last_commits_value = (
+        last_commits if last_commits is not None else settings.last_commits
+    )
     since_value = _coerce_since(since if since is not None else settings.since)
     cache_value = cache or settings.cache or DEFAULT_CACHE_PATH
 
-    _check_overwrite(cache_value, force=force)
+    if not append:
+        _check_overwrite(cache_value, force=force)
 
     try:
         summary = run_fetch(
             repo=repo_value,
             cache_path=cache_value,
             last=last_value,
+            last_commits=last_commits_value,
             since=since_value,
             include_loose_commits=not no_loose_commits,
+            append=append,
         )
     except AuthError as exc:
         raise click.ClickException(f"gh authentication required: {exc}") from exc

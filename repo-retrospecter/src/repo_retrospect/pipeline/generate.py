@@ -22,6 +22,7 @@ from pathlib import Path
 from repo_retrospect.cache.store import load as load_cache
 from repo_retrospect.cache.store import save as save_cache
 from repo_retrospect.models.cache import CacheFile
+from repo_retrospect.models.knowledge import Knowledge
 from repo_retrospect.services.classifier import (
     classify_commits,
     classify_pull_requests,
@@ -70,23 +71,58 @@ def run_generate(
 
     classified = False
     if cache.knowledge is None:
+        # First run for this cache: classify all PRs and commits.
+        pending_prs = list(cache.pull_requests)
+        pending_commits = list(cache.loose_commits)
+        existing_knowledge: list[Knowledge] = []
+        covered_urls: set[str] = set()
+        do_classify = True
+    else:
+        # Subsequent run (typically after `fetch --append`): classify only
+        # PRs/commits whose URLs are not yet represented in cached knowledge.
+        # Empty knowledge list with no new items means "already attempted,
+        # nothing to do" and intentionally short-circuits per existing test.
+        existing_knowledge = list(cache.knowledge)
+        covered_urls = {url for k in existing_knowledge for url in k.source_urls}
+        pending_prs = [
+            pr for pr in cache.pull_requests if pr.url not in covered_urls
+        ]
+        pending_commits = [
+            c for c in cache.loose_commits if c.url not in covered_urls
+        ]
+        do_classify = bool(pending_prs or pending_commits)
+
+    if do_classify:
         logger.info(
-            "classifying %d PRs + %d loose commits (cache had no knowledge)",
-            len(cache.pull_requests),
-            len(cache.loose_commits),
+            "classifying %d PRs + %d loose commits (existing knowledge=%d)",
+            len(pending_prs),
+            len(pending_commits),
+            len(existing_knowledge),
         )
-        knowledge = classify_pull_requests(cache.pull_requests, themes=themes)
-        knowledge.extend(classify_commits(cache.loose_commits, themes=themes))
+        new_knowledge = classify_pull_requests(
+            pending_prs, themes=themes, exclude_urls=covered_urls
+        )
+        new_knowledge.extend(
+            classify_commits(
+                pending_commits, themes=themes, exclude_urls=covered_urls
+            )
+        )
+        knowledge = existing_knowledge + new_knowledge
         cache = cache.model_copy(
             update={"knowledge": knowledge, "generated_at": datetime.now(tz=UTC)}
         )
         save_cache(cache_path, cache)
         classified = True
-        logger.info("classification done: %d knowledge records", len(knowledge))
+        logger.info(
+            "classification done: %d new + %d kept = %d total knowledge records",
+            len(new_knowledge),
+            len(existing_knowledge),
+            len(knowledge),
+        )
     else:
         logger.info(
-            "reusing cached knowledge (%d records); skipping classifier",
-            len(cache.knowledge),
+            "reusing cached knowledge (%d records); no new items to classify",
+            len(existing_knowledge),
         )
 
     rendered: list[Path] = []

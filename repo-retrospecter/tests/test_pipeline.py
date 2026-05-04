@@ -232,13 +232,15 @@ class TestRunGenerateClassification:
         assert summary.classified is False
         assert summary.knowledge_count == 1
 
-    def test_empty_knowledge_list_is_distinct_from_unclassified(
+    def test_empty_knowledge_with_no_uncovered_items_skips_classifier(
         self, tmp_path: Path
     ) -> None:
-        # Once classify ran and returned [], subsequent generate must NOT
-        # re-classify (decision: empty != absent).
+        # Updated for ADR-0005: knowledge != None means "we've already
+        # classified what we know about". Generate skips the classifier
+        # only when there are no PRs/commits with uncovered URLs.
         cache_path = tmp_path / "cache.json"
-        save_cache(cache_path, _make_cache(knowledge=[]))
+        # No pull_requests AND knowledge=[] => nothing to classify.
+        save_cache(cache_path, _make_cache(knowledge=[], pull_requests=[]))
 
         with patch.object(
             generate_mod, "classify_pull_requests"
@@ -582,8 +584,10 @@ class TestRunPipeline:
             repo="owner/repo",
             cache_path=cache_path,
             last=7,
+            last_commits=None,
             since=date(2026, 1, 1),
             include_loose_commits=True,
+            append=False,
             timeout=42.0,
         )
         generate_mock.assert_called_once_with(

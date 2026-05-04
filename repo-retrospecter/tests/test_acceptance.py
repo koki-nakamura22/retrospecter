@@ -271,7 +271,7 @@ def test_f2_01_default_themes(tmp_path: Path) -> None:
 
     with patch(
         "repo_retrospect.pipeline.generate.classify_pull_requests",
-        side_effect=lambda prs, themes=None: _knowledge_for(prs, themes),
+        side_effect=lambda prs, themes=None, **_kw: _knowledge_for(prs, themes),
     ):
         result = CliRunner().invoke(cli, ["generate", "--cache", str(cache_path)])
 
@@ -300,7 +300,7 @@ def test_f2_02_custom_themes(tmp_path: Path) -> None:
 
     captured: dict[str, Any] = {}
 
-    def fake_classify(prs, themes=None):
+    def fake_classify(prs, themes=None, **_kw):
         captured["themes"] = themes
         return _knowledge_for(prs, themes)
 
@@ -471,6 +471,157 @@ def test_f4_02_ai_citation_required(tmp_path: Path) -> None:
 
 
 @pytest.mark.acceptance
+def test_f5_01_append_merges_new_items_and_preserves_existing(tmp_path: Path) -> None:
+    """TC-F5-01: ``run --append`` merges new PRs/commits + skips re-classifying existing."""
+    from datetime import UTC, datetime as _dt
+
+    from repo_retrospect.cache.store import load as load_cache
+    from repo_retrospect.cache.store import save as save_cache
+    from repo_retrospect.models.cache import CACHE_SCHEMA_VERSION, CacheFile
+    from repo_retrospect.models.commit import Commit
+    from repo_retrospect.models.pull_request import PullRequest
+
+    cache_path = tmp_path / "cache.json"
+    out_md = tmp_path / "h.md"
+    ai_md = tmp_path / "a.md"
+
+    pre_pr = PullRequest(
+        number=10,
+        title="existing PR",
+        body="",
+        author="alice",
+        merged_at=_dt(2026, 4, 10, 10, 0, tzinfo=UTC),
+        url=f"https://github.com/{SAMPLE_REPO}/pull/10",
+        review_comments=[],
+        inline_comments=[],
+    )
+    pre_commit = Commit(
+        sha="sha_aaaaaaaaaaaa",
+        message="direct push A",
+        author="alice",
+        committed_at=_dt(2026, 4, 10, 9, 0, tzinfo=UTC),
+        url=f"https://github.com/{SAMPLE_REPO}/commit/sha_aaaaaaaaaaaa",
+    )
+    pre_knowledge = [
+        Knowledge(
+            rule="existing rule",
+            anti_pattern="existing anti-pattern",
+            example="x = 1",
+            source_urls=[pre_pr.url, pre_commit.url],
+            themes=["design_decision"],
+        )
+    ]
+    save_cache(
+        cache_path,
+        CacheFile(
+            schema_version=CACHE_SCHEMA_VERSION,
+            generated_at=_dt(2026, 4, 11, 0, 0, tzinfo=UTC),
+            repo=SAMPLE_REPO,
+            pull_requests=[pre_pr],
+            loose_commits=[pre_commit],
+            knowledge=pre_knowledge,
+        ),
+    )
+
+    new_pr_dict = _make_pr_dict(11, merged_at="2026-04-20T10:00:00Z")
+
+    def fake_fetch_loose_commits(*_args: Any, **_kwargs: Any) -> list[Commit]:
+        return [
+            Commit(
+                sha="sha_bbbbbbbbbbbb",
+                message="direct push B",
+                author="alice",
+                committed_at=_dt(2026, 4, 21, 10, 0, tzinfo=UTC),
+                url=f"https://github.com/{SAMPLE_REPO}/commit/sha_bbbbbbbbbbbb",
+            )
+        ]
+
+    classify_pr_calls: list[list[PullRequest]] = []
+
+    def fake_classify_prs(prs: list[PullRequest], **_kwargs: Any) -> list[Knowledge]:
+        classify_pr_calls.append(list(prs))
+        return [
+            Knowledge(
+                rule=f"new rule for PR #{pr.number}",
+                anti_pattern="...",
+                example="...",
+                source_urls=[pr.url],
+                themes=["design_decision"],
+            )
+            for pr in prs
+        ]
+
+    classify_commit_calls: list[list[Commit]] = []
+
+    def fake_classify_commits(commits: list[Commit], **_kwargs: Any) -> list[Knowledge]:
+        classify_commit_calls.append(list(commits))
+        return [
+            Knowledge(
+                rule=f"new rule for commit {c.sha[:7]}",
+                anti_pattern="...",
+                example="...",
+                source_urls=[c.url],
+                themes=["bug_pattern"],
+            )
+            for c in commits
+        ]
+
+    with (
+        patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run,
+        patch(
+            "repo_retrospect.pipeline.fetch.fetch_loose_commits",
+            side_effect=fake_fetch_loose_commits,
+        ),
+        patch(
+            "repo_retrospect.pipeline.generate.classify_pull_requests",
+            side_effect=fake_classify_prs,
+        ),
+        patch(
+            "repo_retrospect.pipeline.generate.classify_commits",
+            side_effect=fake_classify_commits,
+        ),
+    ):
+        mock_run.side_effect = _make_gh_dispatcher([new_pr_dict])
+        result = CliRunner().invoke(
+            cli,
+            [
+                "run",
+                "--repo",
+                SAMPLE_REPO,
+                "--append",
+                "--cache",
+                str(cache_path),
+                "--out",
+                str(out_md),
+                "--ai-out",
+                str(ai_md),
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+
+    merged = load_cache(cache_path)
+    assert {pr.number for pr in merged.pull_requests} == {10, 11}
+    assert {c.sha for c in merged.loose_commits} == {
+        "sha_aaaaaaaaaaaa",
+        "sha_bbbbbbbbbbbb",
+    }
+
+    # classifier called only with the new PR / commit (not existing).
+    assert [pr.number for batch in classify_pr_calls for pr in batch] == [11]
+    assert [c.sha for batch in classify_commit_calls for c in batch] == [
+        "sha_bbbbbbbbbbbb"
+    ]
+
+    assert merged.knowledge is not None
+    assert len(merged.knowledge) == 3
+    all_urls = {url for k in merged.knowledge for url in k.source_urls}
+    assert pre_pr.url in all_urls
+    assert f"https://github.com/{SAMPLE_REPO}/pull/11" in all_urls
+    assert f"https://github.com/{SAMPLE_REPO}/commit/sha_bbbbbbbbbbbb" in all_urls
+
+
+@pytest.mark.acceptance
 @pytest.mark.slow
 def test_perf_01_30pr_within_5min(tmp_path: Path) -> None:
     """TC-PERF-01: end-to-end ``run`` for 30 PRs completes within 5 minutes.
@@ -484,7 +635,7 @@ def test_perf_01_30pr_within_5min(tmp_path: Path) -> None:
     prs = [_make_pr_dict(n) for n in range(1, 31)]
     call_counter = {"llm": 0}
 
-    def fake_classify(pull_requests, themes=None):
+    def fake_classify(pull_requests, themes=None, **_kw):
         call_counter["llm"] += 1
         return _knowledge_for(pull_requests, themes)
 
@@ -534,7 +685,7 @@ def test_sec_01_api_key_redact(
     cache = tmp_path / "cache.json"
     prs = [_make_pr_dict(1)]
 
-    def fake_classify(pull_requests, themes=None):
+    def fake_classify(pull_requests, themes=None, **_kw):
         # Simulate a verbose path that logs something containing the secret.
         logging.getLogger("repo_retrospect.services.classifier").info(
             "calling anthropic with header authorization=Bearer %s", secret
