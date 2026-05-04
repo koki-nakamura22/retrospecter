@@ -2,6 +2,252 @@
 
 [![CI](https://github.com/OWNER/repo-retrospect/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/repo-retrospect/actions/workflows/ci.yml)
 
-LLM-powered retrospective generator that turns GitHub PR review history into both human-readable monthly retrospectives and AI-consumable rule/anti-pattern Markdown. Wraps `gh` CLI for data fetching and Anthropic Claude for theme classification and knowledge extraction.
+> Replace `OWNER` in the CI badge URL above once the repository is published.
 
-> Replace `OWNER` in the CI badge URL above once the repository is published to GitHub.
+LLM-powered retrospective generator. Turns a GitHub repository's PR / commit / review-comment history into:
+
+- **Human-facing retrospective notes** — themed monthly Markdown for the team to skim
+- **AI-consumable knowledge** — Rule / Anti-pattern / Example records that paste cleanly into `CLAUDE.md`, `SKILL.md`, or any agent-instruction file
+
+so neither the people nor the AI coding agents on the project keep re-learning the same lessons.
+
+## Why
+
+PR reviews and commit decisions encode a ton of project-specific judgment ("we use middleware not `_redirects` for Cloudflare Pages domain redirects"). That judgment normally evaporates after the merge:
+
+- Humans skim the PR list once and forget
+- New teammates start at zero
+- AI agents repeat the exact mistakes humans previously corrected, every session
+
+`repo-retrospect` extracts that judgment in a form that is **simultaneously useful for human review and parsable as agent context**, with citation URLs back to the originating PR / commit so nothing is hallucinated.
+
+## Features
+
+- **PR + comment-thread ingestion** — body, review comments, inline comments, and `gh suggestion` blocks (delegates auth to `gh auth`, no token in this tool)
+- **Loose-commit support** — also covers default-branch commits that bypassed PR review (great for solo / direct-push repos)
+- **Themed classification** — default 5 axes (`design_decision` / `review_rule` / `bug_pattern` / `refactor` / `other`); fully overridable per project
+- **Two-stream output** — human Markdown + AI-shaped knowledge from the same run, with mandatory source URLs (TC-F4-02)
+- **Incremental updates (`--append`)** — re-running fetches only the delta and skips re-classifying items already covered (ADR-0005)
+- **Cache-first** — intermediate JSON cache so re-rendering or switching output formats does not re-call the LLM (ADR-0003)
+- **Plugin-shaped renderers** — `human` / `ai` today, easy to add `skill` / custom Jinja2 templates later (ADR-0004)
+
+## Requirements
+
+- Python **3.11+**
+- [`gh` CLI](https://cli.github.com/) **2.0+** with `gh auth login` completed (the tool delegates all GitHub auth to `gh`; no PAT or env var here)
+- An Anthropic API key (`ANTHROPIC_API_KEY`)
+- macOS / Linux / WSL2. Windows native is best-effort (CI runs Linux).
+
+## Install
+
+```bash
+# Recommended: pipx for global install
+pipx install repo-retrospect
+
+# Or with uv
+uv tool install repo-retrospect
+```
+
+For local development:
+
+```bash
+git clone https://github.com/OWNER/repo-retrospect.git
+cd repo-retrospect
+uv sync                    # creates .venv with deps + dev deps
+uv run repo-retrospect --help
+```
+
+## Setup
+
+Copy the example env file and add your Anthropic API key:
+
+```bash
+cp .env.example .env
+# edit .env and set ANTHROPIC_API_KEY=sk-ant-...
+```
+
+`python-dotenv` is bundled, so the CLI reads `.env` from the current directory automatically. Alternatively, export the variable in your shell or use a tool like [`direnv`](https://direnv.net/).
+
+## Quick start
+
+```bash
+# Fetch the last 30 merged PRs + 30 default-branch commits, classify, render both outputs
+uv run repo-retrospect run \
+  --repo koki-nakamura22/django-n1-ckecker \
+  --out docs/learnings/2026-05.md \
+  --ai-out docs/learnings/ai-knowledge.md
+```
+
+That single call:
+
+1. `gh` fetches PRs + their review/inline/suggestion comments → `.retrospect/cache.json`
+2. `gh api repos/.../commits` fetches the most recent commits, drops those tied to a collected PR
+3. Anthropic Claude classifies the bundle into themes and extracts `Knowledge` records (with mandatory source URLs)
+4. Two Markdown files are rendered from the cache
+
+## Subcommands
+
+| Command | Purpose |
+|---|---|
+| `run`      | Fetch + classify + render in one shot |
+| `fetch`    | Just persist PR / commit data to the cache JSON (no LLM call) |
+| `generate` | Read an existing cache, classify any new items, render Markdown |
+
+`fetch` + `generate` lets you separate cost (LLM is only in `generate`) and iterate on `--out` / `--ai-out` paths or theme settings without re-fetching.
+
+## Common options
+
+```text
+--repo OWNER/NAME          Target repository (required unless set in --config)
+--last N                   Cap on merged PRs (default 30)
+--last-commits N           Cap on default-branch commits scanned for loose-commit detection (default 30)
+--since YYYY-MM-DD         Lower bound for both PRs and commits (date granularity)
+--no-loose-commits         Skip the loose-commit pass entirely (PR-only mode)
+--append                   Incremental update — see below
+--cache PATH               Cache JSON path (default .retrospect/cache.json)
+--out PATH                 Human-facing Markdown output
+--ai-out PATH              AI-facing Markdown output
+--config PATH              JSON / TOML defaults file
+--force                    Overwrite existing output files
+-v / --verbose             DEBUG logging (API keys are redacted)
+-q / --quiet               WARN+ only
+```
+
+## Incremental updates (`--append`)
+
+After the first full run, subsequent runs can take only the delta:
+
+```bash
+# Initial fetch (full)
+uv run repo-retrospect run --repo X --out h.md --ai-out a.md
+
+# Days/weeks later: pick up only what's new since the last run
+uv run repo-retrospect run --repo X --append --out h.md --ai-out a.md
+```
+
+What `--append` does (per [ADR-0005](docs/adr/0005-incremental-append-update.md)):
+
+- Reads existing `cache.json`, derives a `since` from the latest `merged_at` / `committed_at`
+- Fetches only newer PRs / commits, merges by `number` / `sha` (existing entries win)
+- Calls the LLM only for items whose URL is not already covered by an existing `Knowledge.source_urls`
+- Falls back to a full fetch (with a warning) if the cache file is missing
+- An explicit `--since` overrides the auto-derived bound
+
+So `repo-retrospect run --repo X --append` is the steady-state weekly command.
+
+## Configuration file
+
+Any flag can be put into a JSON or TOML file:
+
+```toml
+# repo-retrospect.config.toml
+repo = "koki-nakamura22/django-n1-ckecker"
+last = 30
+last_commits = 50
+themes = ["security", "performance", "design_decision", "other"]
+out = "docs/learnings/latest.md"
+ai_out = "docs/learnings/ai-knowledge.md"
+```
+
+```bash
+uv run repo-retrospect run --config repo-retrospect.config.toml
+```
+
+CLI flags always override the config file.
+
+## Output examples
+
+### Human Markdown
+
+```markdown
+# 振り返り — koki-nakamura22/django-n1-ckecker
+- 対象 PR 数: 5
+- 対象 直 push コミット数: 0
+- 抽出ナレッジ数: 12
+
+## 主要設計判断
+
+### Use middleware or functions for domain redirects on Cloudflare Pages instead of static _redirects files.
+- 避けるべき: Creating a _redirects file for domain redirects on Cloudflare Pages, which is not supported.
+- 例: ...
+- 出典: https://github.com/.../commit/b3f553c
+
+## 頻出レビュー指摘 Top 5
+1. **Use pre-commit hooks (ruff lint, ruff format, mypy, pytest) ...**
+   - https://github.com/.../pull/15
+```
+
+### AI Markdown
+
+```markdown
+### Rule: Use middleware or functions for domain redirects on Cloudflare Pages.
+- Themes: design_decision, bug_pattern
+- Anti-pattern: Creating a _redirects file (not supported by the platform).
+- Example:
+  ```js
+  if (url.hostname.endsWith('.pages.dev')) { return Response.redirect(...); }
+  ```
+- Sources:
+  - https://github.com/.../commit/b3f553c
+```
+
+Drop the AI file (or the relevant section) into `CLAUDE.md` / a `SKILL.md` and your agent picks up project-specific judgment without you re-typing it.
+
+## Privacy / security
+
+- GitHub auth: delegated to `gh auth login`. This tool **never sees a PAT or token**.
+- Anthropic API key: read from `ANTHROPIC_API_KEY` only. Redacted from all logs (decision-defaults §ログ).
+- PII: GitHub `login` is kept; `email` and other identifying fields are stripped before reaching the cache or output.
+- LLM data flow: PR bodies and comment text are sent to Anthropic for classification. Use `--no-loose-commits` and the `themes` config to scope what gets sent. **Don't run this on a repo whose PR contents you cannot share with a third-party LLM provider.**
+
+## Architecture
+
+```
+CLI (click)
+  → Pipeline (run / fetch / generate)
+      → Services
+          ├── fetcher    (gh CLI subprocess)
+          ├── classifier (Anthropic SDK + prompt caching)
+          └── renderer   (jinja2 templates: human / ai)
+      → Cache (Pydantic-backed JSON, ADR-0003 unified)
+```
+
+Detailed design lives under `docs/`:
+
+- `docs/product-requirements.md` — PRD (KPI, MVP scope, NFR)
+- `docs/architecture.md` — tech stack, layered design, CI policy
+- `docs/adr/000{1..5}-*.md` — design decisions (Python+uv, gh wrapper, unified cache, renderer plugin, incremental append)
+- `docs/decision-defaults.md` — the "when in doubt do X" defaults
+- `docs/test-cases/acceptance.md` — Given/When/Then acceptance cases (TC-F1 .. TC-F5, TC-PERF, TC-SEC)
+- `docs/traceability.md` — requirement ↔ design ↔ test mapping
+
+> `docs/` is intentionally `.gitignore`d in this repository — it is treated as flow information for the author. The doc set is kept locally; design decisions worth public review are codified as ADRs and PRD-level notes referenced from this README.
+
+## Development
+
+```bash
+uv sync
+uv run pytest                 # default suite (excludes slow markers)
+uv run pyright src/           # type-check (strict mode)
+uv run ruff check src/ tests/ # lint
+uv run ruff format src/ tests/
+
+# Run the slow / perf / security cases manually
+uv run pytest -m slow
+```
+
+CI (`.github/workflows/ci.yml`) runs lint / typecheck / test on a Python `[3.11, 3.12, 3.13]` matrix. The matrix is intentionally `os: [ubuntu-latest]` only today but is structured so adding `macos-latest` is a one-line change. Composite action `.github/actions/setup-uv/` keeps the `uv install + uv sync + cache` block reusable.
+
+## Roadmap
+
+- [x] F1–F4 MVP: fetch / classify / render two streams
+- [x] F1+ loose-commit support (PR-less commits via `gh api repos/X/commits`)
+- [x] F5 incremental updates (`--append`)
+- [ ] F6 SKILL.md / CLAUDE.md auto-update proposals (diff-style suggestion)
+- [ ] F7 GitHub Actions runner mode (post weekly retros to an Issue / Discussion)
+- [ ] Multi-language renderer templates (`--lang ja`)
+- [ ] Multi-repo / org-wide retrospectives
+
+## License
+
+TBD.
