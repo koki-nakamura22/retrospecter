@@ -11,6 +11,12 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Monorepo: every job's `run:` step executes from the app's project root.
+# Composite actions don't inherit this — they take `project-dir` explicitly.
+defaults:
+  run:
+    working-directory: repo-retrospecter
+
 jobs:
   lint:
     name: lint (ruff) — py${{ matrix.python-version }} / ${{ matrix.os }}
@@ -26,6 +32,7 @@ jobs:
         uses: ./.github/actions/setup-uv
         with:
           python-version: ${{ matrix.python-version }}
+          project-dir: repo-retrospecter
       - name: ruff check
         run: uv run ruff check src/ tests/
       - name: ruff format --check
@@ -45,6 +52,7 @@ jobs:
         uses: ./.github/actions/setup-uv
         with:
           python-version: ${{ matrix.python-version }}
+          project-dir: repo-retrospecter
       - name: pyright
         run: uv run pyright
 
@@ -62,6 +70,7 @@ jobs:
         uses: ./.github/actions/setup-uv
         with:
           python-version: ${{ matrix.python-version }}
+          project-dir: repo-retrospecter
       - name: pytest (default; excludes slow)
         run: uv run pytest -q -m "not slow"
 
@@ -79,5 +88,6 @@ jobs:
         uses: ./.github/actions/setup-uv
         with:
           python-version: ${{ matrix.python-version }}
+          project-dir: repo-retrospecter
       - name: pytest (slow only)
         run: uv run pytest -q -m "slow"

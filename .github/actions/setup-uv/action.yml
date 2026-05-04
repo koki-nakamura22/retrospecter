@@ -1,10 +1,14 @@
 name: Setup uv + Python
-description: Install uv, restore the uv cache, set up Python, and sync the locked dev environment.
+description: Install uv, restore the uv cache, set up Python, and sync the locked dev environment for a given project directory.
 
 inputs:
   python-version:
     description: Python version to set up (matches actions/setup-python).
     required: true
+  project-dir:
+    description: Project root directory (relative to repo root) containing pyproject.toml + uv.lock.
+    required: false
+    default: .
 
 runs:
   using: composite
@@ -13,7 +17,7 @@ runs:
       uses: astral-sh/setup-uv@v3
       with:
         enable-cache: true
-        cache-dependency-glob: uv.lock
+        cache-dependency-glob: ${{ inputs.project-dir }}/uv.lock
 
     - name: Set up Python ${{ inputs.python-version }}
       uses: actions/setup-python@v5
@@ -24,11 +28,12 @@ runs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/uv
-        key: uv-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles('uv.lock') }}
+        key: uv-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles(format('{0}/uv.lock', inputs.project-dir)) }}
         restore-keys: |
           uv-${{ runner.os }}-py${{ inputs.python-version }}-
           uv-${{ runner.os }}-
 
     - name: Sync locked dependencies
       shell: bash
+      working-directory: ${{ inputs.project-dir }}
       run: uv sync --locked --all-extras --dev
