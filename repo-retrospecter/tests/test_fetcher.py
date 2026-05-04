@@ -17,9 +17,11 @@ from repo_retrospect.services.fetcher import (
     SEARCH_LIMIT_DEFAULT,
     _author_login,
     _build_pr_list_args,
+    _decode_array,
     _extract_wait_hint,
     _parse_dt,
     _run_gh,
+    _to_comment,
     fetch_pull_requests,
 )
 
@@ -28,7 +30,9 @@ from repo_retrospect.services.fetcher import (
 # ---------------------------------------------------------------------------
 
 
-def _completed(stdout: str = "", stderr: str = "", code: int = 0) -> subprocess.CompletedProcess[str]:
+def _completed(
+    stdout: str = "", stderr: str = "", code: int = 0
+) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(args=["gh"], returncode=code, stdout=stdout, stderr=stderr)
 
 
@@ -63,17 +67,23 @@ class TestRunGh:
             assert mock_run.call_args.kwargs["timeout"] == 12.5
 
     def test_missing_gh_binary_raises_fetch_error(self) -> None:
-        with patch(
-            "repo_retrospect.services.fetcher.subprocess.run",
-            side_effect=FileNotFoundError("no gh"),
-        ), pytest.raises(FetchError, match="gh CLI not found"):
+        with (
+            patch(
+                "repo_retrospect.services.fetcher.subprocess.run",
+                side_effect=FileNotFoundError("no gh"),
+            ),
+            pytest.raises(FetchError, match="gh CLI not found"),
+        ):
             _run_gh(["pr", "list"])
 
     def test_timeout_raises_fetch_error_with_seconds(self) -> None:
-        with patch(
-            "repo_retrospect.services.fetcher.subprocess.run",
-            side_effect=subprocess.TimeoutExpired(cmd="gh", timeout=60),
-        ), pytest.raises(FetchError, match="timed out after 60s"):
+        with (
+            patch(
+                "repo_retrospect.services.fetcher.subprocess.run",
+                side_effect=subprocess.TimeoutExpired(cmd="gh", timeout=60),
+            ),
+            pytest.raises(FetchError, match="timed out after 60s"),
+        ):
             _run_gh(["pr", "list"])
 
     @pytest.mark.parametrize(
@@ -338,10 +348,7 @@ class TestFetchPullRequests:
 
     def test_extracts_suggestion_block_as_separate_comment(self) -> None:
         body_with_suggestion = (
-            "Consider using a constant here:\n"
-            "```suggestion\n"
-            "MAX_RETRIES = 3\n"
-            "```\n"
+            "Consider using a constant here:\n```suggestion\nMAX_RETRIES = 3\n```\n"
         )
         responder = _make_gh_responder(
             pr_list=[_pr_payload()],
@@ -444,17 +451,23 @@ class TestFetchPullRequests:
         assert first[first.index("--limit") + 1] == "5"
 
     def test_propagates_auth_error_from_pr_list(self) -> None:
-        with patch(
-            "repo_retrospect.services.fetcher._run_gh",
-            side_effect=AuthError("gh authentication required"),
-        ), pytest.raises(AuthError):
+        with (
+            patch(
+                "repo_retrospect.services.fetcher._run_gh",
+                side_effect=AuthError("gh authentication required"),
+            ),
+            pytest.raises(AuthError),
+        ):
             fetch_pull_requests("o/r", last=1)
 
     def test_propagates_rate_limit_error_from_pr_list(self) -> None:
-        with patch(
-            "repo_retrospect.services.fetcher._run_gh",
-            side_effect=RateLimitError("API rate limit exceeded"),
-        ), pytest.raises(RateLimitError):
+        with (
+            patch(
+                "repo_retrospect.services.fetcher._run_gh",
+                side_effect=RateLimitError("API rate limit exceeded"),
+            ),
+            pytest.raises(RateLimitError),
+        ):
             fetch_pull_requests("o/r", last=1)
 
     def test_invalid_pr_list_payload_raises_fetch_error(self) -> None:
@@ -464,3 +477,326 @@ class TestFetchPullRequests:
             pytest.raises(FetchError, match="JSON array"),
         ):
             fetch_pull_requests("o/r", last=1)
+
+    def test_since_param_triggers_search_argv(self) -> None:
+        captured: list[list[str]] = []
+
+        def responder(args: list[str], *, timeout: float = 60.0) -> str:  # noqa: ARG001
+            captured.append(args)
+            return "[]"
+
+        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+            fetch_pull_requests("o/r", since="2026-04-01")
+
+        first = captured[0]
+        assert "--search" in first
+        assert first[first.index("--search") + 1] == "is:merged merged:>=2026-04-01"
+        assert first[first.index("--limit") + 1] == str(SEARCH_LIMIT_DEFAULT)
+
+    def test_returns_multiple_prs_in_order(self) -> None:
+        responder = _make_gh_responder(
+            pr_list=[
+                _pr_payload(number=10, mergedAt="2026-05-01T00:00:00Z"),
+                _pr_payload(number=11, mergedAt="2026-05-02T00:00:00Z"),
+                _pr_payload(number=12, mergedAt="2026-05-03T00:00:00Z"),
+            ],
+        )
+        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+            prs = fetch_pull_requests("o/r", last=3)
+        assert [p.number for p in prs] == [10, 11, 12]
+
+    def test_timeout_forwarded_to_run_gh(self) -> None:
+        captured_timeouts: list[float] = []
+
+        def responder(args: list[str], *, timeout: float = 60.0) -> str:
+            captured_timeouts.append(timeout)
+            if args[:2] == ["pr", "list"]:
+                return json.dumps([_pr_payload()])
+            return "[]"
+
+        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+            fetch_pull_requests("o/r", last=1, timeout=12.5)
+
+        # pr list + 3 comment endpoints (issues, reviews, pulls/comments)
+        assert len(captured_timeouts) == 4
+        assert all(t == 12.5 for t in captured_timeouts)
+
+    def test_accepts_snake_case_merged_at_fallback(self) -> None:
+        payload = _pr_payload()
+        del payload["mergedAt"]
+        payload["merged_at"] = "2026-05-03T12:34:56Z"
+        responder = _make_gh_responder(pr_list=[payload])
+        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+            prs = fetch_pull_requests("o/r", last=1)
+        assert prs[0].merged_at == datetime(2026, 5, 3, 12, 34, 56, tzinfo=UTC)
+
+    def test_only_first_suggestion_block_captured_per_comment(self) -> None:
+        """When a single inline comment carries multiple suggestion blocks,
+        only the first is surfaced — `re.search` captures one match."""
+        body = "First nit:\n```suggestion\nx = 1\n```\nAnd another:\n```suggestion\ny = 2\n```\n"
+        responder = _make_gh_responder(
+            pr_list=[_pr_payload()],
+            inline=[
+                {
+                    "id": 99,
+                    "user": {"login": "frank"},
+                    "body": body,
+                    "created_at": "2026-05-03T14:00:00Z",
+                }
+            ],
+        )
+        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+            prs = fetch_pull_requests("o/r", last=1)
+
+        suggestions = [c for c in prs[0].inline_comments if c.kind == "suggestion"]
+        assert len(suggestions) == 1
+        assert "x = 1" in suggestions[0].body
+        assert "y = 2" not in suggestions[0].body
+
+    def test_inline_comment_without_suggestion_block_yields_no_suggestion(self) -> None:
+        responder = _make_gh_responder(
+            pr_list=[_pr_payload()],
+            inline=[
+                {
+                    "id": 1,
+                    "user": {"login": "frank"},
+                    "body": "just a plain inline comment",
+                    "created_at": "2026-05-03T14:00:00Z",
+                }
+            ],
+        )
+        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+            prs = fetch_pull_requests("o/r", last=1)
+        kinds = [c.kind for c in prs[0].inline_comments]
+        assert kinds == ["inline"]
+
+    def test_skips_comment_with_whitespace_only_body(self) -> None:
+        responder = _make_gh_responder(
+            pr_list=[_pr_payload()],
+            issues=[
+                {
+                    "id": 1,
+                    "user": {"login": "carol"},
+                    "body": "   \n\t  ",
+                    "created_at": "2026-05-03T13:00:00Z",
+                },
+                {
+                    "id": 2,
+                    "user": {"login": "carol"},
+                    "body": "real content",
+                    "created_at": "2026-05-03T13:01:00Z",
+                },
+            ],
+        )
+        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+            prs = fetch_pull_requests("o/r", last=1)
+        bodies = [c.body for c in prs[0].review_comments]
+        assert bodies == ["real content"]
+
+
+# ---------------------------------------------------------------------------
+# _decode_array (private)
+# ---------------------------------------------------------------------------
+
+
+class TestDecodeArray:
+    def test_empty_string_returns_empty_list(self) -> None:
+        assert _decode_array("") == []
+
+    def test_whitespace_only_returns_empty_list(self) -> None:
+        assert _decode_array("   \n\t  ") == []
+
+    def test_valid_json_array_passes_through(self) -> None:
+        assert _decode_array('[{"a": 1}]') == [{"a": 1}]
+
+    def test_object_payload_raises_fetch_error(self) -> None:
+        with pytest.raises(FetchError, match="JSON array"):
+            _decode_array('{"a": 1}')
+
+    def test_scalar_payload_raises_fetch_error(self) -> None:
+        with pytest.raises(FetchError, match="JSON array"):
+            _decode_array("42")
+
+    def test_invalid_json_raises_json_decode_error(self) -> None:
+        with pytest.raises(json.JSONDecodeError):
+            _decode_array("{ not json")
+
+
+# ---------------------------------------------------------------------------
+# _to_comment (private)
+# ---------------------------------------------------------------------------
+
+
+class TestToComment:
+    @staticmethod
+    def _kwargs() -> dict[str, Any]:
+        return {"kind": "issue", "id_prefix": "issue", "date_field": "created_at"}
+
+    def test_returns_comment_for_valid_payload(self) -> None:
+        raw: dict[str, Any] = {
+            "id": 7,
+            "user": {"login": "alice"},
+            "body": "hi",
+            "created_at": "2026-05-03T13:00:00Z",
+        }
+        c = _to_comment(raw, **self._kwargs())
+        assert c is not None
+        assert c.id == "issue-7"
+        assert c.author == "alice"
+        assert c.kind == "issue"
+        assert c.created_at == datetime(2026, 5, 3, 13, 0, 0, tzinfo=UTC)
+
+    def test_missing_id_returns_none(self) -> None:
+        raw: dict[str, Any] = {
+            "user": {"login": "alice"},
+            "body": "hi",
+            "created_at": "2026-05-03T13:00:00Z",
+        }
+        assert _to_comment(raw, **self._kwargs()) is None
+
+    def test_missing_date_field_returns_none(self) -> None:
+        raw: dict[str, Any] = {"id": 1, "user": {"login": "a"}, "body": "hi"}
+        assert _to_comment(raw, **self._kwargs()) is None
+
+    def test_empty_date_field_returns_none(self) -> None:
+        raw: dict[str, Any] = {
+            "id": 1,
+            "user": {"login": "a"},
+            "body": "hi",
+            "created_at": "",
+        }
+        assert _to_comment(raw, **self._kwargs()) is None
+
+    def test_non_string_date_field_returns_none(self) -> None:
+        raw: dict[str, Any] = {
+            "id": 1,
+            "user": {"login": "a"},
+            "body": "hi",
+            "created_at": 0,
+        }
+        assert _to_comment(raw, **self._kwargs()) is None
+
+    def test_empty_body_returns_none(self) -> None:
+        raw: dict[str, Any] = {
+            "id": 1,
+            "user": {"login": "a"},
+            "body": "",
+            "created_at": "2026-05-03T13:00:00Z",
+        }
+        assert _to_comment(raw, **self._kwargs()) is None
+
+    def test_whitespace_body_returns_none(self) -> None:
+        raw: dict[str, Any] = {
+            "id": 1,
+            "user": {"login": "a"},
+            "body": "   ",
+            "created_at": "2026-05-03T13:00:00Z",
+        }
+        assert _to_comment(raw, **self._kwargs()) is None
+
+    def test_non_string_body_returns_none(self) -> None:
+        raw: dict[str, Any] = {
+            "id": 1,
+            "user": {"login": "a"},
+            "body": None,
+            "created_at": "2026-05-03T13:00:00Z",
+        }
+        assert _to_comment(raw, **self._kwargs()) is None
+
+    def test_missing_user_falls_back_to_ghost(self) -> None:
+        raw: dict[str, Any] = {
+            "id": 5,
+            "body": "hi",
+            "created_at": "2026-05-03T13:00:00Z",
+        }
+        c = _to_comment(raw, **self._kwargs())
+        assert c is not None
+        assert c.author == "ghost"
+
+    def test_id_prefix_and_kind_propagate(self) -> None:
+        raw: dict[str, Any] = {
+            "id": 9,
+            "user": {"login": "a"},
+            "body": "hi",
+            "submitted_at": "2026-05-03T13:00:00Z",
+        }
+        c = _to_comment(raw, kind="review", id_prefix="review", date_field="submitted_at")
+        assert c is not None
+        assert c.id == "review-9"
+        assert c.kind == "review"
+
+
+# ---------------------------------------------------------------------------
+# _extract_wait_hint additional patterns
+# ---------------------------------------------------------------------------
+
+
+class TestExtractWaitHintExtra:
+    def test_reset_at_iso_timestamp(self) -> None:
+        stderr = "rate limit exceeded; resets at 2026-05-04T13:00:00Z"
+        assert _extract_wait_hint(stderr) == "2026-05-04T13:00:00Z"
+
+    def test_until_iso_timestamp(self) -> None:
+        stderr = "blocked until 2026-05-04T13:00:00Z by secondary rate limit"
+        assert _extract_wait_hint(stderr) == "2026-05-04T13:00:00Z"
+
+    def test_singular_unit_matches(self) -> None:
+        # parametrize covers plural; verify singular path explicitly
+        assert _extract_wait_hint("retry in 1 minute") == "1 minute"
+
+
+# ---------------------------------------------------------------------------
+# additional _run_gh patterns
+# ---------------------------------------------------------------------------
+
+
+class TestRunGhExtra:
+    @pytest.mark.parametrize(
+        "stderr",
+        [
+            "no authentication token configured",
+            "ERROR: HTTP 401 Unauthorized",
+        ],
+    )
+    def test_extra_auth_patterns_raise_auth_error(self, stderr: str) -> None:
+        with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+            mock_run.return_value = _completed(stderr=stderr, code=1)
+            with pytest.raises(AuthError):
+                _run_gh(["api", "x"])
+
+    def test_secondary_rate_limit_phrasing(self) -> None:
+        stderr = "you have exceeded a secondary rate limit"
+        with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+            mock_run.return_value = _completed(stderr=stderr, code=1)
+            with pytest.raises(RateLimitError):
+                _run_gh(["api", "x"])
+
+    def test_failure_with_only_stdout_uses_stdout_as_detail(self) -> None:
+        with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+            mock_run.return_value = _completed(stdout="something broke", stderr="", code=1)
+            with pytest.raises(FetchError, match="something broke"):
+                _run_gh(["pr", "list"])
+
+
+# ---------------------------------------------------------------------------
+# exception hierarchy
+# ---------------------------------------------------------------------------
+
+
+class TestExceptionHierarchy:
+    def test_auth_error_is_fetch_error(self) -> None:
+        assert issubclass(AuthError, FetchError)
+
+    def test_rate_limit_error_is_fetch_error(self) -> None:
+        assert issubclass(RateLimitError, FetchError)
+
+    def test_auth_and_rate_limit_are_distinct(self) -> None:
+        assert not issubclass(AuthError, RateLimitError)
+        assert not issubclass(RateLimitError, AuthError)
+
+    def test_callers_can_catch_subclasses_via_fetch_error(self) -> None:
+        for cls in (AuthError, RateLimitError):
+            try:
+                raise cls("boom")
+            except FetchError as exc:
+                assert str(exc) == "boom"
