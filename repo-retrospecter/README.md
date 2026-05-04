@@ -1,3 +1,5 @@
+**English** | [日本語](README.ja.md)
+
 # repo-retrospecter
 
 [![CI](https://github.com/OWNER/repo-retrospecter/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/repo-retrospecter/actions/workflows/ci.yml)
