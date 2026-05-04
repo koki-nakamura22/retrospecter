@@ -2,12 +2,11 @@
 
 # repo-retrospecter
 
-[![CI](https://github.com/OWNER/repo-retrospecter/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/repo-retrospecter/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/license-TBD-lightgrey.svg)](#license)
+[![CI](https://github.com/koki-nakamura22/retrospecter/actions/workflows/ci.yml/badge.svg)](https://github.com/koki-nakamura22/retrospecter/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](#license)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-> Replace `OWNER` in the CI badge URL above once the repository is published. Update the License badge once a license is chosen.
 
 LLM-powered retrospective generator. Turns a GitHub repository's PR / commit / review-comment history into:
 
@@ -56,7 +55,7 @@ uv tool install repo-retrospecter
 For local development:
 
 ```bash
-git clone https://github.com/OWNER/repo-retrospecter.git
+git clone https://github.com/koki-nakamura22/retrospecter.git
 cd repo-retrospecter
 uv sync                    # creates .venv with deps + dev deps
 uv run repo-retrospecter --help
@@ -211,4 +210,4 @@ A CLI was a deliberate choice over packaging this as a Claude Code skill. The in
 
 ## License
 
-TBD.
+Apache License 2.0 — see [LICENSE](../LICENSE).

@@ -89,4 +89,4 @@ TBD. The umbrella is currently a single-author workspace; contribution guideline
 
 ## License
 
-TBD.
+Apache License 2.0 — see [LICENSE](LICENSE).
