@@ -175,9 +175,7 @@ class TestBuildClient:
         with pytest.raises(AuthError):
             _build_client(timeout=10.0)
 
-    def test_passes_key_and_timeout_to_anthropic(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_passes_key_and_timeout_to_anthropic(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(API_KEY_ENV, "sk-ant-fakekey")
         with patch("repo_retrospect.services.classifier.Anthropic") as ctor:
             ctor.return_value = MagicMock()
@@ -459,6 +457,18 @@ class TestParseResponse:
         text = json.dumps({"knowledge": [record]})
         assert _parse_response(text, ["design_decision", "other"]) == []
 
+    def test_empty_string_url_elements_are_filtered_out(self) -> None:
+        # TC-F4-02 boundary: among a mix of valid URL + empty strings, only the
+        # non-empty entry survives. Pins the `if isinstance(u, str) and u` guard
+        # in _parse_response so a regression that lets "" through is caught.
+        record = _knowledge_payload()
+        record["source_urls"] = ["https://github.com/o/r/pull/1", "", "  "]
+        text = json.dumps({"knowledge": [record]})
+        records = _parse_response(text, ["design_decision", "other"])
+        assert len(records) == 1
+        assert "" not in records[0].source_urls
+        assert "https://github.com/o/r/pull/1" in records[0].source_urls
+
     def test_non_dict_record_is_skipped(self) -> None:
         text = json.dumps({"knowledge": ["string-instead-of-dict", _knowledge_payload()]})
         assert len(_parse_response(text, ["design_decision", "other"])) == 1
@@ -536,7 +546,12 @@ class TestClassifyPullRequests:
         texts = [
             json.dumps({"knowledge": [_knowledge_payload(rule="rule-A")]}),
             json.dumps(
-                {"knowledge": [_knowledge_payload(rule="rule-B"), _knowledge_payload(rule="rule-C")]}
+                {
+                    "knowledge": [
+                        _knowledge_payload(rule="rule-B"),
+                        _knowledge_payload(rule="rule-C"),
+                    ]
+                }
             ),
         ]
         client = _make_client(texts)
@@ -592,6 +607,57 @@ class TestClassifyPullRequests:
         assert len(result) == 1
         assert result[0].source_urls == ["https://github.com/o/r/pull/2"]
 
+    def test_batch_size_one_calls_api_per_pr(self) -> None:
+        # Boundary value (smallest valid batch_size). With batch_size=1, the
+        # range(0, 5, 1) loop produces 5 batches of 1 PR each.
+        prs = [_make_pr(number=i) for i in range(1, 6)]
+        client = _make_client([json.dumps({"knowledge": []})] * 5)
+        classify_pull_requests(prs, client=client, batch_size=1)
+        assert client.messages.create.call_count == 5
+
+    def test_batch_size_larger_than_input_uses_single_call(self) -> None:
+        # Boundary value (batch_size > len). 3 PRs fit in one batch even when
+        # the configured size is 10 — range(0, 3, 10) yields a single start=0.
+        prs = [_make_pr(number=i) for i in range(1, 4)]
+        client = _make_client(json.dumps({"knowledge": []}))
+        classify_pull_requests(prs, client=client, batch_size=10)
+        assert client.messages.create.call_count == 1
+        # All three PRs must appear in that single call's user message.
+        content = client.messages.create.call_args.kwargs["messages"][0]["content"]
+        assert "PR #1" in content
+        assert "PR #2" in content
+        assert "PR #3" in content
+
+    def test_max_tokens_forwarded_to_messages_create(self) -> None:
+        client = _make_client(json.dumps({"knowledge": []}))
+        classify_pull_requests([_make_pr()], client=client, max_tokens=1234)
+        assert client.messages.create.call_args.kwargs["max_tokens"] == 1234
+
+    def test_timeout_forwarded_to_built_client(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # When no client is injected, the timeout argument must reach the
+        # Anthropic constructor so per-call deadlines (decision-defaults.md
+        # §タイムアウト) are honored.
+        monkeypatch.setenv(API_KEY_ENV, "sk-ant-fakekey")
+        with patch("repo_retrospect.services.classifier.Anthropic") as ctor:
+            fake = MagicMock()
+            fake.messages.create.return_value = _make_message(json.dumps({"knowledge": []}))
+            ctor.return_value = fake
+            classify_pull_requests([_make_pr()], timeout=33.5)
+            assert ctor.call_args.kwargs["timeout"] == 33.5
+
+    def test_system_prompt_does_not_leak_api_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Negative assertion (TC-SEC-01 / decision-defaults.md §ログ extended
+        # to the request payload itself): even with the env key set, neither
+        # system blocks nor the user message must echo the credential.
+        monkeypatch.setenv(API_KEY_ENV, "sk-ant-SECRETKEYVALUE")
+        client = _make_client(json.dumps({"knowledge": []}))
+        classify_pull_requests([_make_pr()], client=client)
+        kwargs = client.messages.create.call_args.kwargs
+        for block in kwargs["system"]:
+            assert "sk-ant-SECRETKEYVALUE" not in block["text"]
+        for message in kwargs["messages"]:
+            assert "sk-ant-SECRETKEYVALUE" not in message["content"]
+
 
 # ---------------------------------------------------------------------------
 # classify_pull_requests — error normalization
@@ -620,15 +686,11 @@ class TestClassifyErrorNormalization:
         client = MagicMock()
         client.messages.create.side_effect = RuntimeError("boom")
         with pytest.raises(FetchError) as exc:
-            classify_pull_requests(
-                [_make_pr(number=42), _make_pr(number=43)], client=client
-            )
+            classify_pull_requests([_make_pr(number=42), _make_pr(number=43)], client=client)
         assert "42" in str(exc.value)
         assert "43" in str(exc.value)
 
-    def test_fetch_error_message_redacts_api_key(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fetch_error_message_redacts_api_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(API_KEY_ENV, "sk-ant-LEAKEDKEYVALUE")
         client = MagicMock()
         client.messages.create.side_effect = RuntimeError("auth: sk-ant-LEAKEDKEYVALUE rejected")
@@ -641,9 +703,7 @@ class TestClassifyErrorNormalization:
     ) -> None:
         # Two batches: batch 1 returns garbage, batch 2 returns a valid record.
         prs = [_make_pr(number=i) for i in range(1, 11)]  # 10 PRs ⇒ 2 batches
-        client = _make_client(
-            ["{ not json", json.dumps({"knowledge": [_knowledge_payload()]})]
-        )
+        client = _make_client(["{ not json", json.dumps({"knowledge": [_knowledge_payload()]})])
         with caplog.at_level(logging.WARNING, logger=classifier_mod.logger.name):
             result = classify_pull_requests(prs, client=client)
         assert len(result) == 1
