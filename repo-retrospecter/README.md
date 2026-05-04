@@ -1,8 +1,11 @@
 # repo-retrospecter
 
 [![CI](https://github.com/OWNER/repo-retrospecter/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/repo-retrospecter/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-TBD-lightgrey.svg)](#license)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-> Replace `OWNER` in the CI badge URL above once the repository is published.
+> Replace `OWNER` in the CI badge URL above once the repository is published. Update the License badge once a license is chosen.
 
 LLM-powered retrospective generator. Turns a GitHub repository's PR / commit / review-comment history into:
 
