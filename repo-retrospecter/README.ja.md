@@ -184,7 +184,7 @@ CLI flag は常に config ファイルより優先されます。
 
 ### AI Markdown
 
-```markdown
+````markdown
 ### Rule: Use middleware or functions for domain redirects on Cloudflare Pages.
 - Themes: design_decision, bug_pattern
 - Anti-pattern: Creating a _redirects file (not supported by the platform).
@@ -194,7 +194,7 @@ CLI flag は常に config ファイルより優先されます。
   ```
 - Sources:
   - https://github.com/.../commit/b3f553c
-```
+````
 
 AI 向けファイル (または該当セクション) を `CLAUDE.md` / `SKILL.md` に貼れば、エージェントがプロジェクト固有の判断をこちらが書き直さずに拾えます。
 

@@ -184,7 +184,7 @@ CLI flags always override the config file.
 
 ### AI Markdown
 
-```markdown
+````markdown
 ### Rule: Use middleware or functions for domain redirects on Cloudflare Pages.
 - Themes: design_decision, bug_pattern
 - Anti-pattern: Creating a _redirects file (not supported by the platform).
@@ -194,7 +194,7 @@ CLI flags always override the config file.
   ```
 - Sources:
   - https://github.com/.../commit/b3f553c
-```
+````
 
 Drop the AI file (or the relevant section) into `CLAUDE.md` / a `SKILL.md` and your agent picks up project-specific judgment without you re-typing it.
 
