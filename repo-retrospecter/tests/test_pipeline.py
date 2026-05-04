@@ -168,6 +168,28 @@ class TestRunFetch:
         assert loaded.generated_at.tzinfo is not None
         assert loaded.generated_at.utcoffset() == datetime.now(UTC).utcoffset()
 
+    def test_writes_current_cache_schema_version(self, tmp_path: Path) -> None:
+        cache_path = tmp_path / "cache.json"
+        with patch.object(fetch_mod, "fetch_pull_requests", return_value=[]):
+            run_fetch(repo="owner/repo", cache_path=cache_path)
+        loaded = load_cache(cache_path)
+        assert loaded.schema_version == CACHE_SCHEMA_VERSION
+
+    def test_accepts_since_as_iso_string(self, tmp_path: Path) -> None:
+        # Per type signature `since: date | str | None`, callers may pass
+        # an ISO-formatted string and the value must be forwarded unchanged.
+        cache_path = tmp_path / "cache.json"
+        with patch.object(
+            fetch_mod, "fetch_pull_requests", return_value=[]
+        ) as fetcher_mock:
+            run_fetch(
+                repo="owner/repo",
+                cache_path=cache_path,
+                since="2026-04-01",
+            )
+        _, kwargs = fetcher_mock.call_args
+        assert kwargs.get("since") == "2026-04-01"
+
 
 # ---------------------------------------------------------------------------
 # pipeline.generate.run_generate
@@ -254,6 +276,64 @@ class TestRunGenerateClassification:
             side_effect=AuthError("ANTHROPIC_API_KEY missing"),
         ), pytest.raises(AuthError):
             run_generate(cache_path=cache_path, skip_render=True)
+
+    def test_propagates_rate_limit_error_from_classifier(
+        self, tmp_path: Path
+    ) -> None:
+        cache_path = tmp_path / "cache.json"
+        save_cache(cache_path, _make_cache(knowledge=None))
+
+        with patch.object(
+            generate_mod,
+            "classify_pull_requests",
+            side_effect=RateLimitError("anthropic rate limit"),
+        ), pytest.raises(RateLimitError):
+            run_generate(cache_path=cache_path, skip_render=True)
+
+    def test_refreshes_generated_at_when_classifier_runs(
+        self, tmp_path: Path
+    ) -> None:
+        # Code contract: when classification runs, the persisted cache's
+        # generated_at is updated to "now" so consumers can tell when the
+        # knowledge was produced. We seed an unambiguously-past fetch time
+        # so the comparison is robust to wall-clock skew.
+        cache_path = tmp_path / "cache.json"
+        past = datetime(2020, 1, 1, tzinfo=UTC)
+        original = CacheFile(
+            schema_version=CACHE_SCHEMA_VERSION,
+            generated_at=past,
+            repo="owner/repo",
+            pull_requests=[_make_pr()],
+            knowledge=None,
+        )
+        save_cache(cache_path, original)
+
+        with patch.object(
+            generate_mod, "classify_pull_requests", return_value=[_make_knowledge()]
+        ):
+            run_generate(cache_path=cache_path, skip_render=True)
+
+        reloaded = load_cache(cache_path)
+        assert reloaded.generated_at > past
+
+    def test_preserves_generated_at_when_reusing_cached_knowledge(
+        self, tmp_path: Path
+    ) -> None:
+        # Counterpart contract: when classification is skipped (knowledge
+        # already cached), the cache file is NOT rewritten, so generated_at
+        # on disk must match the value originally saved.
+        cache_path = tmp_path / "cache.json"
+        original = _make_cache(knowledge=[_make_knowledge("cached rule")])
+        save_cache(cache_path, original)
+
+        with patch.object(
+            generate_mod, "classify_pull_requests"
+        ) as classifier_mock:
+            run_generate(cache_path=cache_path, skip_render=True)
+
+        classifier_mock.assert_not_called()
+        reloaded = load_cache(cache_path)
+        assert reloaded.generated_at == original.generated_at
 
 
 class TestRunGenerateRendering:
@@ -412,12 +492,56 @@ class TestRunPipeline:
             patch.object(
                 run_mod, "run_fetch", side_effect=AuthError("no auth")
             ) as fetch_mock,
-            patch.object(run_mod, "run_generate") as generate_mock,pytest.raises(AuthError)
+            patch.object(run_mod, "run_generate") as generate_mock,
+            pytest.raises(AuthError),
         ):
             run_pipeline(repo="owner/repo", cache_path=cache_path)
 
         fetch_mock.assert_called_once()
         generate_mock.assert_not_called()
+
+    def test_propagates_rate_limit_error_from_fetch(self, tmp_path: Path) -> None:
+        cache_path = tmp_path / "cache.json"
+
+        with (
+            patch.object(
+                run_mod, "run_fetch", side_effect=RateLimitError("gh rate limit")
+            ) as fetch_mock,
+            patch.object(run_mod, "run_generate") as generate_mock,
+            pytest.raises(RateLimitError),
+        ):
+            run_pipeline(repo="owner/repo", cache_path=cache_path)
+
+        fetch_mock.assert_called_once()
+        generate_mock.assert_not_called()
+
+    def test_propagates_error_from_generate_after_successful_fetch(
+        self, tmp_path: Path
+    ) -> None:
+        # Symmetric to test_skips_generate_when_fetch_raises: a failure in
+        # the generate phase must surface to the caller (CLI converts to
+        # ClickException) without being silently swallowed.
+        cache_path = tmp_path / "cache.json"
+
+        with (
+            patch.object(
+                run_mod,
+                "run_fetch",
+                return_value=FetchSummary(
+                    repo="owner/repo", cache_path=cache_path, pr_count=0
+                ),
+            ) as fetch_mock,
+            patch.object(
+                run_mod,
+                "run_generate",
+                side_effect=AuthError("ANTHROPIC_API_KEY missing"),
+            ) as generate_mock,
+            pytest.raises(AuthError),
+        ):
+            run_pipeline(repo="owner/repo", cache_path=cache_path)
+
+        fetch_mock.assert_called_once()
+        generate_mock.assert_called_once()
 
     def test_forwards_arguments_to_fetch_and_generate(self, tmp_path: Path) -> None:
         cache_path = tmp_path / "cache.json"
