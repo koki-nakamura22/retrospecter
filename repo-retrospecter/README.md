@@ -125,7 +125,7 @@ uv run repo-retrospect run --repo X --out h.md --ai-out a.md
 uv run repo-retrospect run --repo X --append --out h.md --ai-out a.md
 ```
 
-What `--append` does (per [ADR-0005](docs/adr/0005-incremental-append-update.md)):
+What `--append` does:
 
 - Reads existing `cache.json`, derives a `since` from the latest `merged_at` / `committed_at`
 - Fetches only newer PRs / commits, merges by `number` / `sha` (existing entries win)
