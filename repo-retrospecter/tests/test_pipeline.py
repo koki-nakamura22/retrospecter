@@ -77,9 +77,7 @@ class TestRunFetch:
     def test_persists_pull_requests_to_cache_path(self, tmp_path: Path) -> None:
         prs = [_make_pr(1), _make_pr(2)]
         cache_path = tmp_path / "cache.json"
-        with patch.object(
-            fetch_mod, "fetch_pull_requests", return_value=prs
-        ) as fetcher_mock:
+        with patch.object(fetch_mod, "fetch_pull_requests", return_value=prs) as fetcher_mock:
             summary = run_fetch(repo="owner/repo", cache_path=cache_path, last=2)
 
         fetcher_mock.assert_called_once()
@@ -87,17 +85,11 @@ class TestRunFetch:
         assert loaded.repo == "owner/repo"
         assert [pr.number for pr in loaded.pull_requests] == [1, 2]
         assert loaded.knowledge is None
-        assert summary == FetchSummary(
-            repo="owner/repo", cache_path=cache_path, pr_count=2
-        )
+        assert summary == FetchSummary(repo="owner/repo", cache_path=cache_path, pr_count=2)
 
-    def test_passes_through_last_since_and_timeout_to_fetcher(
-        self, tmp_path: Path
-    ) -> None:
+    def test_passes_through_last_since_and_timeout_to_fetcher(self, tmp_path: Path) -> None:
         cache_path = tmp_path / "cache.json"
-        with patch.object(
-            fetch_mod, "fetch_pull_requests", return_value=[]
-        ) as fetcher_mock:
+        with patch.object(fetch_mod, "fetch_pull_requests", return_value=[]) as fetcher_mock:
             run_fetch(
                 repo="owner/repo",
                 cache_path=cache_path,
@@ -122,9 +114,7 @@ class TestRunFetch:
             cache_path,
             _make_cache(knowledge=[_make_knowledge("legacy rule")]),
         )
-        with patch.object(
-            fetch_mod, "fetch_pull_requests", return_value=[_make_pr(7)]
-        ):
+        with patch.object(fetch_mod, "fetch_pull_requests", return_value=[_make_pr(7)]):
             run_fetch(repo="owner/repo", cache_path=cache_path)
 
         reloaded = load_cache(cache_path)
@@ -133,22 +123,28 @@ class TestRunFetch:
 
     def test_propagates_auth_error(self, tmp_path: Path) -> None:
         cache_path = tmp_path / "cache.json"
-        with patch.object(
-            fetch_mod,
-            "fetch_pull_requests",
-            side_effect=AuthError("gh authentication required"),
-        ), pytest.raises(AuthError):
+        with (
+            patch.object(
+                fetch_mod,
+                "fetch_pull_requests",
+                side_effect=AuthError("gh authentication required"),
+            ),
+            pytest.raises(AuthError),
+        ):
             run_fetch(repo="owner/repo", cache_path=cache_path)
         # Cache must not be created when fetch failed (TC-F1-03 contract).
         assert not cache_path.exists()
 
     def test_propagates_rate_limit_error(self, tmp_path: Path) -> None:
         cache_path = tmp_path / "cache.json"
-        with patch.object(
-            fetch_mod,
-            "fetch_pull_requests",
-            side_effect=RateLimitError("rate limit"),
-        ), pytest.raises(RateLimitError):
+        with (
+            patch.object(
+                fetch_mod,
+                "fetch_pull_requests",
+                side_effect=RateLimitError("rate limit"),
+            ),
+            pytest.raises(RateLimitError),
+        ):
             run_fetch(repo="owner/repo", cache_path=cache_path)
         assert not cache_path.exists()
 
@@ -179,9 +175,7 @@ class TestRunFetch:
         # Per type signature `since: date | str | None`, callers may pass
         # an ISO-formatted string and the value must be forwarded unchanged.
         cache_path = tmp_path / "cache.json"
-        with patch.object(
-            fetch_mod, "fetch_pull_requests", return_value=[]
-        ) as fetcher_mock:
+        with patch.object(fetch_mod, "fetch_pull_requests", return_value=[]) as fetcher_mock:
             run_fetch(
                 repo="owner/repo",
                 cache_path=cache_path,
@@ -197,9 +191,7 @@ class TestRunFetch:
 
 
 class TestRunGenerateClassification:
-    def test_calls_classifier_when_cache_has_no_knowledge(
-        self, tmp_path: Path
-    ) -> None:
+    def test_calls_classifier_when_cache_has_no_knowledge(self, tmp_path: Path) -> None:
         cache_path = tmp_path / "cache.json"
         save_cache(cache_path, _make_cache(knowledge=None))
         knowledge = [_make_knowledge()]
@@ -216,25 +208,19 @@ class TestRunGenerateClassification:
         reloaded = load_cache(cache_path)
         assert reloaded.knowledge == knowledge
 
-    def test_skips_classifier_when_cache_already_has_knowledge(
-        self, tmp_path: Path
-    ) -> None:
+    def test_skips_classifier_when_cache_already_has_knowledge(self, tmp_path: Path) -> None:
         cache_path = tmp_path / "cache.json"
         existing_knowledge = [_make_knowledge("cached rule")]
         save_cache(cache_path, _make_cache(knowledge=existing_knowledge))
 
-        with patch.object(
-            generate_mod, "classify_pull_requests"
-        ) as classifier_mock:
+        with patch.object(generate_mod, "classify_pull_requests") as classifier_mock:
             summary = run_generate(cache_path=cache_path, skip_render=True)
 
         classifier_mock.assert_not_called()
         assert summary.classified is False
         assert summary.knowledge_count == 1
 
-    def test_empty_knowledge_with_no_uncovered_items_skips_classifier(
-        self, tmp_path: Path
-    ) -> None:
+    def test_empty_knowledge_with_no_uncovered_items_skips_classifier(self, tmp_path: Path) -> None:
         # Updated for ADR-0005: knowledge != None means "we've already
         # classified what we know about". Generate skips the classifier
         # only when there are no PRs/commits with uncovered URLs.
@@ -242,9 +228,7 @@ class TestRunGenerateClassification:
         # No pull_requests AND knowledge=[] => nothing to classify.
         save_cache(cache_path, _make_cache(knowledge=[], pull_requests=[]))
 
-        with patch.object(
-            generate_mod, "classify_pull_requests"
-        ) as classifier_mock:
+        with patch.object(generate_mod, "classify_pull_requests") as classifier_mock:
             summary = run_generate(cache_path=cache_path, skip_render=True)
 
         classifier_mock.assert_not_called()
@@ -272,29 +256,31 @@ class TestRunGenerateClassification:
         cache_path = tmp_path / "cache.json"
         save_cache(cache_path, _make_cache(knowledge=None))
 
-        with patch.object(
-            generate_mod,
-            "classify_pull_requests",
-            side_effect=AuthError("ANTHROPIC_API_KEY missing"),
-        ), pytest.raises(AuthError):
+        with (
+            patch.object(
+                generate_mod,
+                "classify_pull_requests",
+                side_effect=AuthError("ANTHROPIC_API_KEY missing"),
+            ),
+            pytest.raises(AuthError),
+        ):
             run_generate(cache_path=cache_path, skip_render=True)
 
-    def test_propagates_rate_limit_error_from_classifier(
-        self, tmp_path: Path
-    ) -> None:
+    def test_propagates_rate_limit_error_from_classifier(self, tmp_path: Path) -> None:
         cache_path = tmp_path / "cache.json"
         save_cache(cache_path, _make_cache(knowledge=None))
 
-        with patch.object(
-            generate_mod,
-            "classify_pull_requests",
-            side_effect=RateLimitError("anthropic rate limit"),
-        ), pytest.raises(RateLimitError):
+        with (
+            patch.object(
+                generate_mod,
+                "classify_pull_requests",
+                side_effect=RateLimitError("anthropic rate limit"),
+            ),
+            pytest.raises(RateLimitError),
+        ):
             run_generate(cache_path=cache_path, skip_render=True)
 
-    def test_refreshes_generated_at_when_classifier_runs(
-        self, tmp_path: Path
-    ) -> None:
+    def test_refreshes_generated_at_when_classifier_runs(self, tmp_path: Path) -> None:
         # Code contract: when classification runs, the persisted cache's
         # generated_at is updated to "now" so consumers can tell when the
         # knowledge was produced. We seed an unambiguously-past fetch time
@@ -310,17 +296,13 @@ class TestRunGenerateClassification:
         )
         save_cache(cache_path, original)
 
-        with patch.object(
-            generate_mod, "classify_pull_requests", return_value=[_make_knowledge()]
-        ):
+        with patch.object(generate_mod, "classify_pull_requests", return_value=[_make_knowledge()]):
             run_generate(cache_path=cache_path, skip_render=True)
 
         reloaded = load_cache(cache_path)
         assert reloaded.generated_at > past
 
-    def test_preserves_generated_at_when_reusing_cached_knowledge(
-        self, tmp_path: Path
-    ) -> None:
+    def test_preserves_generated_at_when_reusing_cached_knowledge(self, tmp_path: Path) -> None:
         # Counterpart contract: when classification is skipped (knowledge
         # already cached), the cache file is NOT rewritten, so generated_at
         # on disk must match the value originally saved.
@@ -328,9 +310,7 @@ class TestRunGenerateClassification:
         original = _make_cache(knowledge=[_make_knowledge("cached rule")])
         save_cache(cache_path, original)
 
-        with patch.object(
-            generate_mod, "classify_pull_requests"
-        ) as classifier_mock:
+        with patch.object(generate_mod, "classify_pull_requests") as classifier_mock:
             run_generate(cache_path=cache_path, skip_render=True)
 
         classifier_mock.assert_not_called()
@@ -339,13 +319,9 @@ class TestRunGenerateClassification:
 
 
 class TestRunGenerateRendering:
-    def test_renders_human_output_when_human_out_specified(
-        self, tmp_path: Path
-    ) -> None:
+    def test_renders_human_output_when_human_out_specified(self, tmp_path: Path) -> None:
         cache_path = tmp_path / "cache.json"
-        save_cache(
-            cache_path, _make_cache(knowledge=[_make_knowledge(themes=["design_decision"])])
-        )
+        save_cache(cache_path, _make_cache(knowledge=[_make_knowledge(themes=["design_decision"])]))
         human_out = tmp_path / "human.md"
 
         summary = run_generate(cache_path=cache_path, human_out=human_out)
@@ -373,9 +349,7 @@ class TestRunGenerateRendering:
         human_out = tmp_path / "human.md"
         ai_out = tmp_path / "ai.md"
 
-        summary = run_generate(
-            cache_path=cache_path, human_out=human_out, ai_out=ai_out
-        )
+        summary = run_generate(cache_path=cache_path, human_out=human_out, ai_out=ai_out)
 
         assert human_out.exists() and ai_out.exists()
         assert summary.rendered_outputs == (human_out, ai_out)
@@ -448,9 +422,7 @@ class TestRunPipeline:
         human_out = tmp_path / "h.md"
         ai_out = tmp_path / "a.md"
 
-        fetch_summary = FetchSummary(
-            repo="owner/repo", cache_path=cache_path, pr_count=3
-        )
+        fetch_summary = FetchSummary(repo="owner/repo", cache_path=cache_path, pr_count=3)
         generate_summary = GenerateSummary(
             cache_path=cache_path,
             pr_count=3,
@@ -470,9 +442,7 @@ class TestRunPipeline:
 
         with (
             patch.object(run_mod, "run_fetch", side_effect=fake_fetch) as fetch_mock,
-            patch.object(
-                run_mod, "run_generate", side_effect=fake_generate
-            ) as generate_mock,
+            patch.object(run_mod, "run_generate", side_effect=fake_generate) as generate_mock,
         ):
             result = run_pipeline(
                 repo="owner/repo",
@@ -491,9 +461,7 @@ class TestRunPipeline:
         cache_path = tmp_path / "cache.json"
 
         with (
-            patch.object(
-                run_mod, "run_fetch", side_effect=AuthError("no auth")
-            ) as fetch_mock,
+            patch.object(run_mod, "run_fetch", side_effect=AuthError("no auth")) as fetch_mock,
             patch.object(run_mod, "run_generate") as generate_mock,
             pytest.raises(AuthError),
         ):
@@ -517,9 +485,7 @@ class TestRunPipeline:
         fetch_mock.assert_called_once()
         generate_mock.assert_not_called()
 
-    def test_propagates_error_from_generate_after_successful_fetch(
-        self, tmp_path: Path
-    ) -> None:
+    def test_propagates_error_from_generate_after_successful_fetch(self, tmp_path: Path) -> None:
         # Symmetric to test_skips_generate_when_fetch_raises: a failure in
         # the generate phase must surface to the caller (CLI converts to
         # ClickException) without being silently swallowed.
@@ -529,9 +495,7 @@ class TestRunPipeline:
             patch.object(
                 run_mod,
                 "run_fetch",
-                return_value=FetchSummary(
-                    repo="owner/repo", cache_path=cache_path, pr_count=0
-                ),
+                return_value=FetchSummary(repo="owner/repo", cache_path=cache_path, pr_count=0),
             ) as fetch_mock,
             patch.object(
                 run_mod,
@@ -554,9 +518,7 @@ class TestRunPipeline:
             patch.object(
                 run_mod,
                 "run_fetch",
-                return_value=FetchSummary(
-                    repo="owner/repo", cache_path=cache_path, pr_count=0
-                ),
+                return_value=FetchSummary(repo="owner/repo", cache_path=cache_path, pr_count=0),
             ) as fetch_mock,
             patch.object(
                 run_mod,
@@ -609,9 +571,7 @@ class TestRunPipeline:
 
         with (
             patch.object(fetch_mod, "fetch_pull_requests", return_value=prs),
-            patch.object(
-                generate_mod, "classify_pull_requests", return_value=knowledge
-            ),
+            patch.object(generate_mod, "classify_pull_requests", return_value=knowledge),
         ):
             summary = run_pipeline(
                 repo="owner/repo",

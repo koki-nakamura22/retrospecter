@@ -66,9 +66,7 @@ def _run_gh(args: list[str], *, timeout: float = GH_TIMEOUT_SEC) -> str:
             check=False,
         )
     except FileNotFoundError as exc:
-        raise FetchError(
-            "gh CLI not found on PATH. Install from https://cli.github.com/."
-        ) from exc
+        raise FetchError("gh CLI not found on PATH. Install from https://cli.github.com/.") from exc
     except subprocess.TimeoutExpired as exc:
         raise FetchError(
             f"gh CLI timed out after {timeout:.0f}s while running: gh {' '.join(args)}"
@@ -81,9 +79,7 @@ def _run_gh(args: list[str], *, timeout: float = GH_TIMEOUT_SEC) -> str:
     lowered = stderr.lower()
 
     if any(p in lowered for p in _AUTH_PATTERNS):
-        raise AuthError(
-            "gh authentication required. Run `gh auth login` first.\n" + stderr
-        )
+        raise AuthError("gh authentication required. Run `gh auth login` first.\n" + stderr)
     if any(p in lowered for p in _RATE_LIMIT_PATTERNS):
         wait_hint = _extract_wait_hint(stderr)
         msg = "GitHub API rate limit exceeded; retry after the cool-down."
@@ -104,9 +100,7 @@ def _extract_wait_hint(stderr: str) -> str | None:
     )
     if match:
         return match.group(1)
-    iso = re.search(
-        r"(?:reset[s]? at|until)\s+([0-9T:Z\-+\s]+)", stderr, flags=re.IGNORECASE
-    )
+    iso = re.search(r"(?:reset[s]? at|until)\s+([0-9T:Z\-+\s]+)", stderr, flags=re.IGNORECASE)
     return iso.group(1).strip() if iso else None
 
 
@@ -144,9 +138,7 @@ def _parse_dt(value: str) -> datetime:
 # ---------------------------------------------------------------------------
 
 
-def _build_pr_list_args(
-    repo: str, *, last: int | None, since: date | str | None
-) -> list[str]:
+def _build_pr_list_args(repo: str, *, last: int | None, since: date | str | None) -> list[str]:
     args = ["pr", "list", "--repo", repo, "--json", PR_LIST_FIELDS]
     if since is not None:
         since_str = since.isoformat() if isinstance(since, date) else since

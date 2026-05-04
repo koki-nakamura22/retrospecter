@@ -105,9 +105,7 @@ def run_fetch(
         include_loose_commits,
         appended,
     )
-    new_pull_requests = fetch_pull_requests(
-        repo, last=last, since=effective_since, timeout=timeout
-    )
+    new_pull_requests = fetch_pull_requests(repo, last=last, since=effective_since, timeout=timeout)
 
     new_loose_commits: list[Commit] = []
     if include_loose_commits:
@@ -178,18 +176,14 @@ def _auto_since(existing: CacheFile) -> date | str | None:
     return boundary.date()
 
 
-def _merge_prs(
-    existing: list[PullRequest], incoming: list[PullRequest]
-) -> list[PullRequest]:
+def _merge_prs(existing: list[PullRequest], incoming: list[PullRequest]) -> list[PullRequest]:
     """Merge by PR number; existing entries win (ADR-0005)."""
     seen = {pr.number for pr in existing}
     extra = [pr for pr in incoming if pr.number not in seen]
     return list(existing) + extra
 
 
-def _merge_commits(
-    existing: list[Commit], incoming: list[Commit]
-) -> list[Commit]:
+def _merge_commits(existing: list[Commit], incoming: list[Commit]) -> list[Commit]:
     """Merge by commit sha; existing entries win (ADR-0005)."""
     seen = {c.sha for c in existing}
     extra = [c for c in incoming if c.sha not in seen]

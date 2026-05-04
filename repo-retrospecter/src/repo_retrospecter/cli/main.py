@@ -22,14 +22,16 @@ import click
 from dotenv import load_dotenv
 
 from repo_retrospecter import __version__
-
-load_dotenv()
 from repo_retrospecter.cli.logging import configure_logging
 from repo_retrospecter.config.settings import Settings, load_settings
 from repo_retrospecter.pipeline.fetch import run_fetch
 from repo_retrospecter.pipeline.generate import run_generate
 from repo_retrospecter.pipeline.run import run_pipeline
 from repo_retrospecter.services.exceptions import AuthError, FetchError, RateLimitError
+
+# Load .env once at CLI import; safe-after-imports because env vars are read
+# lazily by classifier/auth code at call time, not at module top-level.
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +60,7 @@ def _coerce_since(value: date | str | None) -> date | None:
     try:
         return datetime.strptime(value, "%Y-%m-%d").date()
     except ValueError as exc:
-        raise click.ClickException(
-            f"--since must be YYYY-MM-DD (got {value!r})"
-        ) from exc
+        raise click.ClickException(f"--since must be YYYY-MM-DD (got {value!r})") from exc
 
 
 def _check_overwrite(path: Path | None, *, force: bool) -> None:
@@ -69,9 +69,7 @@ def _check_overwrite(path: Path | None, *, force: bool) -> None:
         return
     if force:
         return
-    raise click.ClickException(
-        f"{path} already exists; pass --force to overwrite"
-    )
+    raise click.ClickException(f"{path} already exists; pass --force to overwrite")
 
 
 def _setup_logging(verbose: bool, quiet: bool) -> None:
@@ -162,9 +160,7 @@ def cmd_run(
         raise click.UsageError("--repo is required (or set in --config).")
 
     last_value = last if last is not None else settings.last
-    last_commits_value = (
-        last_commits if last_commits is not None else settings.last_commits
-    )
+    last_commits_value = last_commits if last_commits is not None else settings.last_commits
     since_value = _coerce_since(since if since is not None else settings.since)
     out_value = out or settings.out
     ai_out_value = ai_out or settings.ai_out
@@ -260,9 +256,7 @@ def cmd_fetch(
         raise click.UsageError("--repo is required (or set in --config).")
 
     last_value = last if last is not None else settings.last
-    last_commits_value = (
-        last_commits if last_commits is not None else settings.last_commits
-    )
+    last_commits_value = last_commits if last_commits is not None else settings.last_commits
     since_value = _coerce_since(since if since is not None else settings.since)
     cache_value = cache or settings.cache or DEFAULT_CACHE_PATH
 

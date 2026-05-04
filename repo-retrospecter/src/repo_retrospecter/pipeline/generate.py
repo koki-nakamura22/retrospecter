@@ -84,12 +84,8 @@ def run_generate(
         # nothing to do" and intentionally short-circuits per existing test.
         existing_knowledge = list(cache.knowledge)
         covered_urls = {url for k in existing_knowledge for url in k.source_urls}
-        pending_prs = [
-            pr for pr in cache.pull_requests if pr.url not in covered_urls
-        ]
-        pending_commits = [
-            c for c in cache.loose_commits if c.url not in covered_urls
-        ]
+        pending_prs = [pr for pr in cache.pull_requests if pr.url not in covered_urls]
+        pending_commits = [c for c in cache.loose_commits if c.url not in covered_urls]
         do_classify = bool(pending_prs or pending_commits)
 
     if do_classify:
@@ -103,9 +99,7 @@ def run_generate(
             pending_prs, themes=themes, exclude_urls=covered_urls
         )
         new_knowledge.extend(
-            classify_commits(
-                pending_commits, themes=themes, exclude_urls=covered_urls
-            )
+            classify_commits(pending_commits, themes=themes, exclude_urls=covered_urls)
         )
         knowledge = existing_knowledge + new_knowledge
         cache = cache.model_copy(
@@ -138,9 +132,7 @@ def run_generate(
     )
 
 
-def _render_outputs(
-    cache: CacheFile, *, human_out: Path | None, ai_out: Path | None
-) -> list[Path]:
+def _render_outputs(cache: CacheFile, *, human_out: Path | None, ai_out: Path | None) -> list[Path]:
     written: list[Path] = []
     if human_out is not None:
         get_renderer("human").render(cache, human_out)

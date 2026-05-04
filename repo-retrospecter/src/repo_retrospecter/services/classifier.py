@@ -235,9 +235,7 @@ def _coerce_themes(raw: Any, allowed: set[str]) -> list[str]:
     return deduped or ["other"]
 
 
-def _parse_response(
-    text: str, themes: list[str]
-) -> list[Knowledge]:
+def _parse_response(text: str, themes: list[str]) -> list[Knowledge]:
     """Decode the model's JSON envelope into Knowledge records.
 
     Records lacking ``source_urls`` are dropped here (TC-F4-02) so callers
@@ -352,13 +350,10 @@ def classify_pull_requests(
                 messages=messages,
             )
         except _AnthropicAuthError as exc:
-            raise AuthError(
-                f"Anthropic rejected the API key: {_redact(str(exc))}"
-            ) from exc
+            raise AuthError(f"Anthropic rejected the API key: {_redact(str(exc))}") from exc
         except Exception as exc:  # noqa: BLE001 - normalize to typed error
             raise FetchError(
-                f"Anthropic call failed for PRs "
-                f"{[pr.number for pr in batch]}: {_redact(str(exc))}"
+                f"Anthropic call failed for PRs {[pr.number for pr in batch]}: {_redact(str(exc))}"
             ) from exc
 
         text = _extract_text(response)
@@ -450,9 +445,7 @@ def classify_commits(
                 messages=messages,
             )
         except _AnthropicAuthError as exc:
-            raise AuthError(
-                f"Anthropic rejected the API key: {_redact(str(exc))}"
-            ) from exc
+            raise AuthError(f"Anthropic rejected the API key: {_redact(str(exc))}") from exc
         except Exception as exc:  # noqa: BLE001 - normalize to typed error
             raise FetchError(
                 f"Anthropic call failed for commits "

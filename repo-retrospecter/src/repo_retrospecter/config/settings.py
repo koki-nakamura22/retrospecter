@@ -56,14 +56,10 @@ def load_settings(path: Path) -> Settings:
         text = path.read_text(encoding="utf-8")
         parsed: object = json.loads(text)
         if not isinstance(parsed, dict):
-            raise ValueError(
-                f"config file {path} must contain a JSON object at top level"
-            )
+            raise ValueError(f"config file {path} must contain a JSON object at top level")
         data = cast(dict[str, Any], parsed)
     else:
-        raise ValueError(
-            f"unsupported config extension {suffix!r}: use .json or .toml"
-        )
+        raise ValueError(f"unsupported config extension {suffix!r}: use .json or .toml")
     return Settings.model_validate(data)
 
 

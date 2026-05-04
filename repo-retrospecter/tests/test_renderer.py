@@ -51,7 +51,9 @@ def _make_knowledge(
         rule=rule,
         anti_pattern=anti_pattern,
         example=example,
-        source_urls=source_urls if source_urls is not None else ["https://github.com/owner/repo/pull/1"],
+        source_urls=source_urls
+        if source_urls is not None
+        else ["https://github.com/owner/repo/pull/1"],
         themes=themes or ["design_decision"],
     )
 
@@ -190,7 +192,11 @@ class TestHumanRendererContent:
         many_urls = [f"https://github.com/o/r/pull/{i}" for i in range(1, 6)]
         cache = _make_cache(
             knowledge=[
-                _make_knowledge(rule="few-sources", source_urls=["https://github.com/o/r/pull/1"], themes=["review_rule"]),
+                _make_knowledge(
+                    rule="few-sources",
+                    source_urls=["https://github.com/o/r/pull/1"],
+                    themes=["review_rule"],
+                ),
                 _make_knowledge(rule="many-sources", source_urls=many_urls, themes=["review_rule"]),
             ]
         )
@@ -205,7 +211,11 @@ class TestHumanRendererContent:
         # Boundary: top_n=2 with 3 review_rule items keeps only 2.
         cache = _make_cache(
             knowledge=[
-                _make_knowledge(rule=f"r{i}", source_urls=[f"https://github.com/o/r/pull/{i}"], themes=["review_rule"])
+                _make_knowledge(
+                    rule=f"r{i}",
+                    source_urls=[f"https://github.com/o/r/pull/{i}"],
+                    themes=["review_rule"],
+                )
                 for i in range(1, 4)
             ]
         )
@@ -290,9 +300,7 @@ class TestHumanRendererContent:
         assert "避けるべき" not in out.read_text(encoding="utf-8")
 
     def test_omits_example_line_when_empty(self, tmp_path: Path) -> None:
-        cache = _make_cache(
-            knowledge=[_make_knowledge(example="", themes=["design_decision"])]
-        )
+        cache = _make_cache(knowledge=[_make_knowledge(example="", themes=["design_decision"])])
         out = tmp_path / "out.md"
 
         HumanRenderer().render(cache, out)
@@ -371,9 +379,7 @@ class TestHumanRendererIO:
 
 class TestAiRendererStructure:
     def test_each_item_has_rule_marker(self, tmp_path: Path) -> None:
-        cache = _make_cache(
-            knowledge=[_make_knowledge(rule="r1"), _make_knowledge(rule="r2")]
-        )
+        cache = _make_cache(knowledge=[_make_knowledge(rule="r1"), _make_knowledge(rule="r2")])
         out = tmp_path / "ai.md"
 
         AiRenderer().render(cache, out)
@@ -382,9 +388,7 @@ class TestAiRendererStructure:
         assert text.count("### Rule:") == 2
 
     def test_includes_anti_pattern_marker(self, tmp_path: Path) -> None:
-        cache = _make_cache(
-            knowledge=[_make_knowledge(anti_pattern="don't do this")]
-        )
+        cache = _make_cache(knowledge=[_make_knowledge(anti_pattern="don't do this")])
         out = tmp_path / "ai.md"
 
         AiRenderer().render(cache, out)
@@ -392,9 +396,7 @@ class TestAiRendererStructure:
         assert "**Anti-pattern**:" in out.read_text(encoding="utf-8")
 
     def test_includes_code_fence_for_example(self, tmp_path: Path) -> None:
-        cache = _make_cache(
-            knowledge=[_make_knowledge(example="snippet()")]
-        )
+        cache = _make_cache(knowledge=[_make_knowledge(example="snippet()")])
         out = tmp_path / "ai.md"
 
         AiRenderer().render(cache, out)
@@ -404,9 +406,7 @@ class TestAiRendererStructure:
         assert "snippet()" in text
 
     def test_includes_themes_when_present(self, tmp_path: Path) -> None:
-        cache = _make_cache(
-            knowledge=[_make_knowledge(themes=["design_decision", "review_rule"])]
-        )
+        cache = _make_cache(knowledge=[_make_knowledge(themes=["design_decision", "review_rule"])])
         out = tmp_path / "ai.md"
 
         AiRenderer().render(cache, out)
@@ -417,9 +417,7 @@ class TestAiRendererStructure:
 
     def test_omits_anti_pattern_marker_when_empty(self, tmp_path: Path) -> None:
         # decision-defaults.md §null/欠損値: blank fields are not printed.
-        cache = _make_cache(
-            knowledge=[_make_knowledge(anti_pattern="")]
-        )
+        cache = _make_cache(knowledge=[_make_knowledge(anti_pattern="")])
         out = tmp_path / "ai.md"
 
         AiRenderer().render(cache, out)
@@ -427,9 +425,7 @@ class TestAiRendererStructure:
         assert "**Anti-pattern**:" not in out.read_text(encoding="utf-8")
 
     def test_omits_example_block_when_empty(self, tmp_path: Path) -> None:
-        cache = _make_cache(
-            knowledge=[_make_knowledge(example="")]
-        )
+        cache = _make_cache(knowledge=[_make_knowledge(example="")])
         out = tmp_path / "ai.md"
 
         AiRenderer().render(cache, out)
@@ -462,7 +458,9 @@ class TestAiRendererCitationFiltering:
     def test_drops_record_whose_urls_are_all_non_github(self, tmp_path: Path) -> None:
         cache = _make_cache(
             knowledge=[
-                _make_knowledge(rule="dropped", source_urls=["https://example.com/a", "https://gitlab.com/b"]),
+                _make_knowledge(
+                    rule="dropped", source_urls=["https://example.com/a", "https://gitlab.com/b"]
+                ),
                 _make_knowledge(rule="kept", source_urls=["https://github.com/o/r/pull/1"]),
             ]
         )
@@ -713,9 +711,7 @@ class TestHumanRendererBoundaries:
     def test_empty_rule_falls_back_to_placeholder(self, tmp_path: Path) -> None:
         # decision-defaults.md §null/欠損値: empty string must not produce a
         # blank heading; the template substitutes "(無題)".
-        cache = _make_cache(
-            knowledge=[_make_knowledge(rule="", themes=["design_decision"])]
-        )
+        cache = _make_cache(knowledge=[_make_knowledge(rule="", themes=["design_decision"])])
         out = tmp_path / "out.md"
 
         HumanRenderer().render(cache, out)
@@ -725,9 +721,7 @@ class TestHumanRendererBoundaries:
 
     def test_no_design_decisions_renders_fallback_message(self, tmp_path: Path) -> None:
         # Equivalence: design_decisions == [] but knowledge non-empty.
-        cache = _make_cache(
-            knowledge=[_make_knowledge(rule="r", themes=["review_rule"])]
-        )
+        cache = _make_cache(knowledge=[_make_knowledge(rule="r", themes=["review_rule"])])
         out = tmp_path / "out.md"
 
         HumanRenderer().render(cache, out)
@@ -736,9 +730,7 @@ class TestHumanRendererBoundaries:
         assert "該当する設計判断は抽出されませんでした" in decisions_block
 
     def test_no_review_rules_renders_fallback_message(self, tmp_path: Path) -> None:
-        cache = _make_cache(
-            knowledge=[_make_knowledge(rule="r", themes=["design_decision"])]
-        )
+        cache = _make_cache(knowledge=[_make_knowledge(rule="r", themes=["design_decision"])])
         out = tmp_path / "out.md"
 
         HumanRenderer().render(cache, out)

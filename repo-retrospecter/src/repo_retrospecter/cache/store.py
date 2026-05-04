@@ -51,8 +51,7 @@ def load(path: Path) -> CacheFile:
     cache = CacheFile.model_validate_json(text)
     if cache.schema_version != CACHE_SCHEMA_VERSION:
         logger.warning(
-            "cache schema_version mismatch: file=%s expected=%s; "
-            "delete %s and re-run fetch.",
+            "cache schema_version mismatch: file=%s expected=%s; delete %s and re-run fetch.",
             cache.schema_version,
             CACHE_SCHEMA_VERSION,
             path,

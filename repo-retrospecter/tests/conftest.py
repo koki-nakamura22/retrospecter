@@ -17,11 +17,14 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _stub_fetch_loose_commits():
-    with patch(
-        "repo_retrospecter.services.fetcher.fetch_loose_commits",
-        return_value=[],
-    ), patch(
-        "repo_retrospecter.pipeline.fetch.fetch_loose_commits",
-        return_value=[],
+    with (
+        patch(
+            "repo_retrospecter.services.fetcher.fetch_loose_commits",
+            return_value=[],
+        ),
+        patch(
+            "repo_retrospecter.pipeline.fetch.fetch_loose_commits",
+            return_value=[],
+        ),
     ):
         yield

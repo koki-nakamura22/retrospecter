@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -23,7 +22,6 @@ from repo_retrospecter.pipeline.fetch import FetchSummary
 from repo_retrospecter.pipeline.generate import GenerateSummary
 from repo_retrospecter.pipeline.run import RunSummary
 from repo_retrospecter.services.exceptions import AuthError, RateLimitError
-
 
 # ---------------------------------------------------------------------------
 # config.settings
@@ -46,9 +44,7 @@ class TestLoadSettings:
 
     def test_loads_toml(self, tmp_path: Path) -> None:
         cfg = tmp_path / "c.toml"
-        cfg.write_text(
-            'repo = "owner/name"\nthemes = ["a", "b"]\n', encoding="utf-8"
-        )
+        cfg.write_text('repo = "owner/name"\nthemes = ["a", "b"]\n', encoding="utf-8")
 
         settings = load_settings(cfg)
 
@@ -219,22 +215,39 @@ class TestCliHelp:
     def test_run_help_lists_required_options(self) -> None:
         result = CliRunner().invoke(cli, ["run", "--help"])
         assert result.exit_code == 0
-        for opt in ("--repo", "--last", "--since", "--out", "--ai-out", "--cache",
-                    "--config", "--force", "--verbose", "--quiet"):
+        for opt in (
+            "--repo",
+            "--last",
+            "--since",
+            "--out",
+            "--ai-out",
+            "--cache",
+            "--config",
+            "--force",
+            "--verbose",
+            "--quiet",
+        ):
             assert opt in result.output
 
     def test_fetch_help(self) -> None:
         result = CliRunner().invoke(cli, ["fetch", "--help"])
         assert result.exit_code == 0
-        for opt in ("--repo", "--last", "--since", "--cache", "--config",
-                    "--force", "--verbose", "--quiet"):
+        for opt in (
+            "--repo",
+            "--last",
+            "--since",
+            "--cache",
+            "--config",
+            "--force",
+            "--verbose",
+            "--quiet",
+        ):
             assert opt in result.output
 
     def test_generate_help(self) -> None:
         result = CliRunner().invoke(cli, ["generate", "--help"])
         assert result.exit_code == 0
-        for opt in ("--cache", "--out", "--ai-out", "--config", "--force",
-                    "--verbose", "--quiet"):
+        for opt in ("--cache", "--out", "--ai-out", "--config", "--force", "--verbose", "--quiet"):
             assert opt in result.output
 
 
@@ -265,9 +278,12 @@ class TestCmdRun:
                 cli,
                 [
                     "run",
-                    "--repo", "owner/name",
-                    "--last", "10",
-                    "--cache", str(cache),
+                    "--repo",
+                    "owner/name",
+                    "--last",
+                    "10",
+                    "--cache",
+                    str(cache),
                 ],
             )
 
@@ -285,8 +301,15 @@ class TestCmdRun:
             mock_run.return_value = _make_run_summary()
             result = CliRunner().invoke(
                 cli,
-                ["run", "--repo", "o/r", "--since", "2026-04-01",
-                 "--cache", str(tmp_path / "c.json")],
+                [
+                    "run",
+                    "--repo",
+                    "o/r",
+                    "--since",
+                    "2026-04-01",
+                    "--cache",
+                    str(tmp_path / "c.json"),
+                ],
             )
         assert result.exit_code == 0, result.output
         assert mock_run.call_args.kwargs["since"] == date(2026, 4, 1)
@@ -294,16 +317,13 @@ class TestCmdRun:
     def test_invalid_since_rejected(self, tmp_path: Path) -> None:
         result = CliRunner().invoke(
             cli,
-            ["run", "--repo", "o/r", "--since", "not-a-date",
-             "--cache", str(tmp_path / "c.json")],
+            ["run", "--repo", "o/r", "--since", "not-a-date", "--cache", str(tmp_path / "c.json")],
         )
         assert result.exit_code != 0
         assert "YYYY-MM-DD" in result.output
 
     def test_missing_repo_errors(self, tmp_path: Path) -> None:
-        result = CliRunner().invoke(
-            cli, ["run", "--cache", str(tmp_path / "c.json")]
-        )
+        result = CliRunner().invoke(cli, ["run", "--cache", str(tmp_path / "c.json")])
         assert result.exit_code != 0
         assert "--repo" in result.output
 
@@ -316,9 +336,7 @@ class TestCmdRun:
 
     def test_config_file_supplies_repo(self, tmp_path: Path) -> None:
         cfg = tmp_path / "cfg.json"
-        cfg.write_text(
-            '{"repo": "from/config", "themes": ["a", "b"]}', encoding="utf-8"
-        )
+        cfg.write_text('{"repo": "from/config", "themes": ["a", "b"]}', encoding="utf-8")
         with patch("repo_retrospecter.cli.main.run_pipeline") as mock_run:
             mock_run.return_value = _make_run_summary()
             result = CliRunner().invoke(
@@ -338,9 +356,12 @@ class TestCmdRun:
                 cli,
                 [
                     "run",
-                    "--config", str(cfg),
-                    "--repo", "from/cli",
-                    "--cache", str(tmp_path / "c.json"),
+                    "--config",
+                    str(cfg),
+                    "--repo",
+                    "from/cli",
+                    "--cache",
+                    str(tmp_path / "c.json"),
                 ],
             )
         assert result.exit_code == 0
@@ -351,9 +372,12 @@ class TestCmdRun:
             cli,
             [
                 "run",
-                "--repo", "o/r",
-                "--config", str(tmp_path / "missing.json"),
-                "--cache", str(tmp_path / "c.json"),
+                "--repo",
+                "o/r",
+                "--config",
+                str(tmp_path / "missing.json"),
+                "--cache",
+                str(tmp_path / "c.json"),
             ],
         )
         assert result.exit_code != 0
@@ -367,9 +391,13 @@ class TestCmdRun:
             result = CliRunner().invoke(
                 cli,
                 [
-                    "run", "--repo", "o/r",
-                    "--out", str(out),
-                    "--cache", str(tmp_path / "c.json"),
+                    "run",
+                    "--repo",
+                    "o/r",
+                    "--out",
+                    str(out),
+                    "--cache",
+                    str(tmp_path / "c.json"),
                 ],
             )
         assert result.exit_code != 0
@@ -384,10 +412,14 @@ class TestCmdRun:
             result = CliRunner().invoke(
                 cli,
                 [
-                    "run", "--repo", "o/r",
-                    "--out", str(out),
+                    "run",
+                    "--repo",
+                    "o/r",
+                    "--out",
+                    str(out),
                     "--force",
-                    "--cache", str(tmp_path / "c.json"),
+                    "--cache",
+                    str(tmp_path / "c.json"),
                 ],
             )
         assert result.exit_code == 0, result.output
@@ -418,9 +450,13 @@ class TestCmdRun:
         result = CliRunner().invoke(
             cli,
             [
-                "run", "--repo", "o/r",
-                "--verbose", "--quiet",
-                "--cache", str(tmp_path / "c.json"),
+                "run",
+                "--repo",
+                "o/r",
+                "--verbose",
+                "--quiet",
+                "--cache",
+                str(tmp_path / "c.json"),
             ],
         )
         assert result.exit_code != 0
@@ -452,9 +488,7 @@ class TestCmdFetch:
         cache = tmp_path / "c.json"
         cache.write_text("{}", encoding="utf-8")
         with patch("repo_retrospecter.cli.main.run_fetch") as mock_fetch:
-            result = CliRunner().invoke(
-                cli, ["fetch", "--repo", "o/r", "--cache", str(cache)]
-            )
+            result = CliRunner().invoke(cli, ["fetch", "--repo", "o/r", "--cache", str(cache)])
         assert result.exit_code != 0
         assert "--force" in result.output
         mock_fetch.assert_not_called()
@@ -472,9 +506,7 @@ class TestCmdGenerate:
         path.write_text(cache.model_dump_json(), encoding="utf-8")
 
     def test_missing_cache_errors(self, tmp_path: Path) -> None:
-        result = CliRunner().invoke(
-            cli, ["generate", "--cache", str(tmp_path / "missing.json")]
-        )
+        result = CliRunner().invoke(cli, ["generate", "--cache", str(tmp_path / "missing.json")])
         assert result.exit_code != 0
         assert "cache file not found" in result.output
 
@@ -489,9 +521,7 @@ class TestCmdGenerate:
                 classified=True,
                 rendered_outputs=(),
             )
-            result = CliRunner().invoke(
-                cli, ["generate", "--cache", str(cache)]
-            )
+            result = CliRunner().invoke(cli, ["generate", "--cache", str(cache)])
 
         assert result.exit_code == 0, result.output
         kwargs = mock_gen.call_args.kwargs
@@ -506,9 +536,7 @@ class TestCmdGenerate:
         out = tmp_path / "o.md"
         out.write_text("existing", encoding="utf-8")
         with patch("repo_retrospecter.cli.main.run_generate") as mock_gen:
-            result = CliRunner().invoke(
-                cli, ["generate", "--cache", str(cache), "--out", str(out)]
-            )
+            result = CliRunner().invoke(cli, ["generate", "--cache", str(cache), "--out", str(out)])
         assert result.exit_code != 0
         assert "--force" in result.output
         mock_gen.assert_not_called()
@@ -530,8 +558,10 @@ class TestCmdGenerate:
                 cli,
                 [
                     "generate",
-                    "--cache", str(cache),
-                    "--config", str(cfg),
+                    "--cache",
+                    str(cache),
+                    "--config",
+                    str(cfg),
                 ],
             )
         assert result.exit_code == 0, result.output

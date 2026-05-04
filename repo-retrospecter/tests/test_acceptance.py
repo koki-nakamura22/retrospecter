@@ -473,7 +473,8 @@ def test_f4_02_ai_citation_required(tmp_path: Path) -> None:
 @pytest.mark.acceptance
 def test_f5_01_append_merges_new_items_and_preserves_existing(tmp_path: Path) -> None:
     """TC-F5-01: ``run --append`` merges new PRs/commits + skips re-classifying existing."""
-    from datetime import UTC, datetime as _dt
+    from datetime import UTC
+    from datetime import datetime as _dt
 
     from repo_retrospecter.cache.store import load as load_cache
     from repo_retrospecter.cache.store import save as save_cache
@@ -609,9 +610,7 @@ def test_f5_01_append_merges_new_items_and_preserves_existing(tmp_path: Path) ->
 
     # classifier called only with the new PR / commit (not existing).
     assert [pr.number for batch in classify_pr_calls for pr in batch] == [11]
-    assert [c.sha for batch in classify_commit_calls for c in batch] == [
-        "sha_bbbbbbbbbbbb"
-    ]
+    assert [c.sha for batch in classify_commit_calls for c in batch] == ["sha_bbbbbbbbbbbb"]
 
     assert merged.knowledge is not None
     assert len(merged.knowledge) == 3

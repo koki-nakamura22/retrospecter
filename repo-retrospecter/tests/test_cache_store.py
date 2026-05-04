@@ -378,11 +378,18 @@ class TestLoadSchemaVersion:
     @pytest.mark.parametrize(
         "bad_version",
         ["", "0", "2", "10", "v1", " 1", "1 ", "1.0"],
-        ids=["empty", "older", "next-major", "double-digit", "prefixed", "leading-space", "trailing-space", "dotted"],
+        ids=[
+            "empty",
+            "older",
+            "next-major",
+            "double-digit",
+            "prefixed",
+            "leading-space",
+            "trailing-space",
+            "dotted",
+        ],
     )
-    def test_raises_value_error_on_any_mismatch(
-        self, tmp_path: Path, bad_version: str
-    ) -> None:
+    def test_raises_value_error_on_any_mismatch(self, tmp_path: Path, bad_version: str) -> None:
         target = tmp_path / "cache.json"
         save(target, _make_cache(schema_version=bad_version))
 
