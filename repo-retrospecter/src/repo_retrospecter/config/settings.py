@@ -1,6 +1,6 @@
 """Optional configuration file loader (architecture.md §config/settings.py).
 
-Users may pass ``--config repo-retrospect.config.json`` (or ``.toml``) to
+Users may pass ``--config repo-retrospecter.config.json`` (or ``.toml``) to
 hold defaults for ``--repo``, ``--last/--since``, output paths, and the
 classifier's theme axes (PRD F2 / OQ-02). CLI options always override
 file values; absent file values fall back to ``None`` so the CLI layer

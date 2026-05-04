@@ -19,15 +19,15 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from repo_retrospect.cache.store import load as load_cache
-from repo_retrospect.cache.store import save as save_cache
-from repo_retrospect.models.cache import CacheFile
-from repo_retrospect.models.knowledge import Knowledge
-from repo_retrospect.services.classifier import (
+from repo_retrospecter.cache.store import load as load_cache
+from repo_retrospecter.cache.store import save as save_cache
+from repo_retrospecter.models.cache import CacheFile
+from repo_retrospecter.models.knowledge import Knowledge
+from repo_retrospecter.services.classifier import (
     classify_commits,
     classify_pull_requests,
 )
-from repo_retrospect.services.renderer import get_renderer
+from repo_retrospecter.services.renderer import get_renderer
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
-# repo-retrospect
+# repo-retrospecter
 
-[![CI](https://github.com/OWNER/repo-retrospect/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/repo-retrospect/actions/workflows/ci.yml)
+[![CI](https://github.com/OWNER/repo-retrospecter/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/repo-retrospecter/actions/workflows/ci.yml)
 
 > Replace `OWNER` in the CI badge URL above once the repository is published.
 
@@ -19,7 +19,7 @@ PR reviews and commit decisions encode a ton of project-specific judgment ("we u
 - New teammates start at zero
 - AI agents repeat the exact mistakes humans previously corrected, every session
 
-`repo-retrospect` extracts that judgment in a form that is **simultaneously useful for human review and parsable as agent context**, with citation URLs back to the originating PR / commit so nothing is hallucinated.
+`repo-retrospecter` extracts that judgment in a form that is **simultaneously useful for human review and parsable as agent context**, with citation URLs back to the originating PR / commit so nothing is hallucinated.
 
 ## Features
 
@@ -42,19 +42,19 @@ PR reviews and commit decisions encode a ton of project-specific judgment ("we u
 
 ```bash
 # Recommended: pipx for global install
-pipx install repo-retrospect
+pipx install repo-retrospecter
 
 # Or with uv
-uv tool install repo-retrospect
+uv tool install repo-retrospecter
 ```
 
 For local development:
 
 ```bash
-git clone https://github.com/OWNER/repo-retrospect.git
-cd repo-retrospect
+git clone https://github.com/OWNER/repo-retrospecter.git
+cd repo-retrospecter
 uv sync                    # creates .venv with deps + dev deps
-uv run repo-retrospect --help
+uv run repo-retrospecter --help
 ```
 
 ## Setup
@@ -72,7 +72,7 @@ cp .env.example .env
 
 ```bash
 # Fetch the last 30 merged PRs + 30 default-branch commits, classify, render both outputs
-uv run repo-retrospect run \
+uv run repo-retrospecter run \
   --repo OWNER/example-repo \
   --out learnings/2026-05.md \
   --ai-out learnings/ai-knowledge.md
@@ -119,10 +119,10 @@ After the first full run, subsequent runs can take only the delta:
 
 ```bash
 # Initial fetch (full)
-uv run repo-retrospect run --repo X --out h.md --ai-out a.md
+uv run repo-retrospecter run --repo X --out h.md --ai-out a.md
 
 # Days/weeks later: pick up only what's new since the last run
-uv run repo-retrospect run --repo X --append --out h.md --ai-out a.md
+uv run repo-retrospecter run --repo X --append --out h.md --ai-out a.md
 ```
 
 What `--append` does:
@@ -133,14 +133,14 @@ What `--append` does:
 - Falls back to a full fetch (with a warning) if the cache file is missing
 - An explicit `--since` overrides the auto-derived bound
 
-So `repo-retrospect run --repo X --append` is the steady-state weekly command.
+So `repo-retrospecter run --repo X --append` is the steady-state weekly command.
 
 ## Configuration file
 
 Any flag can be put into a JSON or TOML file:
 
 ```toml
-# repo-retrospect.config.toml
+# repo-retrospecter.config.toml
 repo = "OWNER/example-repo"
 last = 30
 last_commits = 50
@@ -150,7 +150,7 @@ ai_out = "docs/learnings/ai-knowledge.md"
 ```
 
 ```bash
-uv run repo-retrospect run --config repo-retrospect.config.toml
+uv run repo-retrospecter run --config repo-retrospecter.config.toml
 ```
 
 CLI flags always override the config file.

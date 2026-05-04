@@ -1,4 +1,4 @@
-"""Unit tests for repo_retrospect.pipeline (T007)."""
+"""Unit tests for repo_retrospecter.pipeline (T007)."""
 
 from __future__ import annotations
 
@@ -9,18 +9,18 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from repo_retrospect.cache.store import load as load_cache
-from repo_retrospect.cache.store import save as save_cache
-from repo_retrospect.models.cache import CACHE_SCHEMA_VERSION, CacheFile
-from repo_retrospect.models.knowledge import Knowledge
-from repo_retrospect.models.pull_request import PullRequest
-from repo_retrospect.pipeline import fetch as fetch_mod
-from repo_retrospect.pipeline import generate as generate_mod
-from repo_retrospect.pipeline import run as run_mod
-from repo_retrospect.pipeline.fetch import FetchSummary, run_fetch
-from repo_retrospect.pipeline.generate import GenerateSummary, run_generate
-from repo_retrospect.pipeline.run import RunSummary, run_pipeline
-from repo_retrospect.services.exceptions import AuthError, RateLimitError
+from repo_retrospecter.cache.store import load as load_cache
+from repo_retrospecter.cache.store import save as save_cache
+from repo_retrospecter.models.cache import CACHE_SCHEMA_VERSION, CacheFile
+from repo_retrospecter.models.knowledge import Knowledge
+from repo_retrospecter.models.pull_request import PullRequest
+from repo_retrospecter.pipeline import fetch as fetch_mod
+from repo_retrospecter.pipeline import generate as generate_mod
+from repo_retrospecter.pipeline import run as run_mod
+from repo_retrospecter.pipeline.fetch import FetchSummary, run_fetch
+from repo_retrospecter.pipeline.generate import GenerateSummary, run_generate
+from repo_retrospecter.pipeline.run import RunSummary, run_pipeline
+from repo_retrospecter.services.exceptions import AuthError, RateLimitError
 
 # ---------------------------------------------------------------------------
 # helpers / fixtures

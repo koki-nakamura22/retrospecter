@@ -1,11 +1,11 @@
 [project]
-name = "repo-retrospect"
+name = "repo-retrospecter"
 version = "0.1.0"
 description = "LLM-powered retrospective generator from GitHub PR history"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
-    { name = "repo-retrospect contributors" },
+    { name = "repo-retrospecter contributors" },
 ]
 dependencies = [
     "anthropic>=0.40,<1.0",
@@ -18,14 +18,14 @@ dependencies = [
 ]
 
 [project.scripts]
-repo-retrospect = "repo_retrospect.cli.main:main"
+repo-retrospecter = "repo_retrospecter.cli.main:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/repo_retrospect"]
+packages = ["src/repo_retrospecter"]
 
 [dependency-groups]
 dev = [

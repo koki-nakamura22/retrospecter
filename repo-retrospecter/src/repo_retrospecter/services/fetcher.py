@@ -23,10 +23,10 @@ from collections.abc import Iterable
 from datetime import date, datetime
 from typing import Any, cast
 
-from repo_retrospect.models.comment import Comment, CommentKind
-from repo_retrospect.models.commit import Commit
-from repo_retrospect.models.pull_request import PullRequest
-from repo_retrospect.services.exceptions import AuthError, FetchError, RateLimitError
+from repo_retrospecter.models.comment import Comment, CommentKind
+from repo_retrospecter.models.commit import Commit
+from repo_retrospecter.models.pull_request import PullRequest
+from repo_retrospecter.services.exceptions import AuthError, FetchError, RateLimitError
 
 GH_TIMEOUT_SEC: float = 60.0
 DEFAULT_LIMIT: int = 30

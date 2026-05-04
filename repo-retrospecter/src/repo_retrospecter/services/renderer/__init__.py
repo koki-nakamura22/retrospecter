@@ -1,4 +1,4 @@
-"""Renderer plugins for repo-retrospect (ADR-0004).
+"""Renderer plugins for repo-retrospecter (ADR-0004).
 
 The :func:`get_renderer` factory keeps the CLI's ``--format`` option
 declarative: today it dispatches to ``human`` and ``ai``; tomorrow a
@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from typing import Literal
 
-from repo_retrospect.services.renderer.ai import AiRenderer
-from repo_retrospect.services.renderer.base import Renderer
-from repo_retrospect.services.renderer.human import HumanRenderer
+from repo_retrospecter.services.renderer.ai import AiRenderer
+from repo_retrospecter.services.renderer.base import Renderer
+from repo_retrospecter.services.renderer.human import HumanRenderer
 
 RendererName = Literal["human", "ai"]
 

@@ -6,7 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from repo_retrospect.models.comment import Comment
+from repo_retrospecter.models.comment import Comment
 
 
 class PullRequest(BaseModel):

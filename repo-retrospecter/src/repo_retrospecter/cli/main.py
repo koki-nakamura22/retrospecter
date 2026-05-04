@@ -1,4 +1,4 @@
-"""click entry point for ``repo-retrospect`` (PRD §CLI / architecture.md §CLI レイヤー).
+"""click entry point for ``repo-retrospecter`` (PRD §CLI / architecture.md §CLI レイヤー).
 
 Three subcommands map 1:1 to the pipeline orchestrators:
 
@@ -21,15 +21,15 @@ from pathlib import Path
 import click
 from dotenv import load_dotenv
 
-from repo_retrospect import __version__
+from repo_retrospecter import __version__
 
 load_dotenv()
-from repo_retrospect.cli.logging import configure_logging
-from repo_retrospect.config.settings import Settings, load_settings
-from repo_retrospect.pipeline.fetch import run_fetch
-from repo_retrospect.pipeline.generate import run_generate
-from repo_retrospect.pipeline.run import run_pipeline
-from repo_retrospect.services.exceptions import AuthError, FetchError, RateLimitError
+from repo_retrospecter.cli.logging import configure_logging
+from repo_retrospecter.config.settings import Settings, load_settings
+from repo_retrospecter.pipeline.fetch import run_fetch
+from repo_retrospecter.pipeline.generate import run_generate
+from repo_retrospecter.pipeline.run import run_pipeline
+from repo_retrospecter.services.exceptions import AuthError, FetchError, RateLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ def _setup_logging(verbose: bool, quiet: bool) -> None:
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
-@click.version_option(__version__, prog_name="repo-retrospect")
+@click.version_option(__version__, prog_name="repo-retrospecter")
 def cli() -> None:
     """Generate retrospectives + AI knowledge from GitHub PR history."""
 

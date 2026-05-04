@@ -1,4 +1,4 @@
-"""Unit tests for repo_retrospect.services.fetcher."""
+"""Unit tests for repo_retrospecter.services.fetcher."""
 
 from __future__ import annotations
 
@@ -10,9 +10,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from repo_retrospect.services import fetcher
-from repo_retrospect.services.exceptions import AuthError, FetchError, RateLimitError
-from repo_retrospect.services.fetcher import (
+from repo_retrospecter.services import fetcher
+from repo_retrospecter.services.exceptions import AuthError, FetchError, RateLimitError
+from repo_retrospecter.services.fetcher import (
     DEFAULT_LIMIT,
     SEARCH_LIMIT_DEFAULT,
     _author_login,
@@ -43,12 +43,12 @@ def _completed(
 
 class TestRunGh:
     def test_success_returns_stdout(self) -> None:
-        with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+        with patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stdout="hello", code=0)
             assert _run_gh(["pr", "list"]) == "hello"
 
     def test_invokes_gh_with_argv_and_default_timeout(self) -> None:
-        with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+        with patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stdout="{}", code=0)
             _run_gh(["api", "x"])
             _, kwargs = mock_run.call_args
@@ -61,7 +61,7 @@ class TestRunGh:
             assert kwargs["check"] is False
 
     def test_custom_timeout_is_forwarded(self) -> None:
-        with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+        with patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stdout="", code=0)
             _run_gh(["api", "x"], timeout=12.5)
             assert mock_run.call_args.kwargs["timeout"] == 12.5
@@ -69,7 +69,7 @@ class TestRunGh:
     def test_missing_gh_binary_raises_fetch_error(self) -> None:
         with (
             patch(
-                "repo_retrospect.services.fetcher.subprocess.run",
+                "repo_retrospecter.services.fetcher.subprocess.run",
                 side_effect=FileNotFoundError("no gh"),
             ),
             pytest.raises(FetchError, match="gh CLI not found"),
@@ -79,7 +79,7 @@ class TestRunGh:
     def test_timeout_raises_fetch_error_with_seconds(self) -> None:
         with (
             patch(
-                "repo_retrospect.services.fetcher.subprocess.run",
+                "repo_retrospecter.services.fetcher.subprocess.run",
                 side_effect=subprocess.TimeoutExpired(cmd="gh", timeout=60),
             ),
             pytest.raises(FetchError, match="timed out after 60s"),
@@ -96,7 +96,7 @@ class TestRunGh:
         ],
     )
     def test_auth_failure_raises_auth_error(self, stderr: str) -> None:
-        with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+        with patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stderr=stderr, code=4)
             with pytest.raises(AuthError) as exc:
                 _run_gh(["pr", "list"])
@@ -104,7 +104,7 @@ class TestRunGh:
 
     def test_rate_limit_extracts_wait_hint(self) -> None:
         stderr = "API rate limit exceeded for user. Try again in 5 minutes."
-        with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+        with patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stderr=stderr, code=4)
             with pytest.raises(RateLimitError) as exc:
                 _run_gh(["pr", "list"])
@@ -114,13 +114,13 @@ class TestRunGh:
 
     def test_rate_limit_without_hint_still_raises(self) -> None:
         stderr = "secondary rate limit triggered"
-        with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+        with patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stderr=stderr, code=4)
             with pytest.raises(RateLimitError):
                 _run_gh(["pr", "list"])
 
     def test_generic_failure_raises_fetch_error_not_auth(self) -> None:
-        with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+        with patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stderr="repo not found", code=1)
             with pytest.raises(FetchError) as exc:
                 _run_gh(["pr", "list"])
@@ -129,7 +129,7 @@ class TestRunGh:
             assert "repo not found" in str(exc.value)
 
     def test_failure_without_stderr_falls_back_to_exit_code(self) -> None:
-        with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+        with patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stderr="", stdout="", code=2)
             with pytest.raises(FetchError, match="exit code 2"):
                 _run_gh(["pr", "list"])
@@ -283,7 +283,7 @@ def _make_gh_responder(
 class TestFetchPullRequests:
     def test_normalizes_minimal_pr_with_no_comments(self) -> None:
         responder = _make_gh_responder(pr_list=[_pr_payload()])
-        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+        with patch("repo_retrospecter.services.fetcher._run_gh", side_effect=responder):
             prs = fetch_pull_requests("o/r", last=1)
 
         assert len(prs) == 1
@@ -300,7 +300,7 @@ class TestFetchPullRequests:
         responder = _make_gh_responder(
             pr_list=[_pr_payload(author={"login": "bob", "email": "bob@example.com"})],
         )
-        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+        with patch("repo_retrospecter.services.fetcher._run_gh", side_effect=responder):
             prs = fetch_pull_requests("o/r", last=1)
         # The serialized PR must not contain the email anywhere.
         dumped = prs[0].model_dump_json()
@@ -335,7 +335,7 @@ class TestFetchPullRequests:
                 }
             ],
         )
-        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+        with patch("repo_retrospecter.services.fetcher._run_gh", side_effect=responder):
             prs = fetch_pull_requests("o/r", last=1)
 
         pr = prs[0]
@@ -361,7 +361,7 @@ class TestFetchPullRequests:
                 }
             ],
         )
-        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+        with patch("repo_retrospecter.services.fetcher._run_gh", side_effect=responder):
             prs = fetch_pull_requests("o/r", last=1)
 
         kinds = [c.kind for c in prs[0].inline_comments]
@@ -393,7 +393,7 @@ class TestFetchPullRequests:
                 },
             ],
         )
-        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+        with patch("repo_retrospecter.services.fetcher._run_gh", side_effect=responder):
             prs = fetch_pull_requests("o/r", last=1)
 
         review_only = [c for c in prs[0].review_comments if c.kind == "review"]
@@ -407,7 +407,7 @@ class TestFetchPullRequests:
                 _pr_payload(number=2),
             ],
         )
-        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+        with patch("repo_retrospecter.services.fetcher._run_gh", side_effect=responder):
             prs = fetch_pull_requests("o/r", last=2)
         assert [p.number for p in prs] == [2]
 
@@ -427,7 +427,7 @@ class TestFetchPullRequests:
                 }
             ],
         )
-        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+        with patch("repo_retrospecter.services.fetcher._run_gh", side_effect=responder):
             prs = fetch_pull_requests("o/r", last=1)
 
         comment = prs[0].review_comments[0]
@@ -443,7 +443,7 @@ class TestFetchPullRequests:
                 return "[]"
             return "[]"
 
-        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+        with patch("repo_retrospecter.services.fetcher._run_gh", side_effect=responder):
             fetch_pull_requests("owner/repo", last=5)
 
         first = captured[0]
@@ -453,7 +453,7 @@ class TestFetchPullRequests:
     def test_propagates_auth_error_from_pr_list(self) -> None:
         with (
             patch(
-                "repo_retrospect.services.fetcher._run_gh",
+                "repo_retrospecter.services.fetcher._run_gh",
                 side_effect=AuthError("gh authentication required"),
             ),
             pytest.raises(AuthError),
@@ -463,7 +463,7 @@ class TestFetchPullRequests:
     def test_propagates_rate_limit_error_from_pr_list(self) -> None:
         with (
             patch(
-                "repo_retrospect.services.fetcher._run_gh",
+                "repo_retrospecter.services.fetcher._run_gh",
                 side_effect=RateLimitError("API rate limit exceeded"),
             ),
             pytest.raises(RateLimitError),
@@ -473,7 +473,7 @@ class TestFetchPullRequests:
     def test_invalid_pr_list_payload_raises_fetch_error(self) -> None:
         responder = MagicMock(return_value=json.dumps({"not": "an array"}))
         with (
-            patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder),
+            patch("repo_retrospecter.services.fetcher._run_gh", side_effect=responder),
             pytest.raises(FetchError, match="JSON array"),
         ):
             fetch_pull_requests("o/r", last=1)
@@ -485,7 +485,7 @@ class TestFetchPullRequests:
             captured.append(args)
             return "[]"
 
-        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+        with patch("repo_retrospecter.services.fetcher._run_gh", side_effect=responder):
             fetch_pull_requests("o/r", since="2026-04-01")
 
         first = captured[0]
@@ -501,7 +501,7 @@ class TestFetchPullRequests:
                 _pr_payload(number=12, mergedAt="2026-05-03T00:00:00Z"),
             ],
         )
-        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+        with patch("repo_retrospecter.services.fetcher._run_gh", side_effect=responder):
             prs = fetch_pull_requests("o/r", last=3)
         assert [p.number for p in prs] == [10, 11, 12]
 
@@ -514,7 +514,7 @@ class TestFetchPullRequests:
                 return json.dumps([_pr_payload()])
             return "[]"
 
-        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+        with patch("repo_retrospecter.services.fetcher._run_gh", side_effect=responder):
             fetch_pull_requests("o/r", last=1, timeout=12.5)
 
         # pr list + 3 comment endpoints (issues, reviews, pulls/comments)
@@ -526,7 +526,7 @@ class TestFetchPullRequests:
         del payload["mergedAt"]
         payload["merged_at"] = "2026-05-03T12:34:56Z"
         responder = _make_gh_responder(pr_list=[payload])
-        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+        with patch("repo_retrospecter.services.fetcher._run_gh", side_effect=responder):
             prs = fetch_pull_requests("o/r", last=1)
         assert prs[0].merged_at == datetime(2026, 5, 3, 12, 34, 56, tzinfo=UTC)
 
@@ -545,7 +545,7 @@ class TestFetchPullRequests:
                 }
             ],
         )
-        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+        with patch("repo_retrospecter.services.fetcher._run_gh", side_effect=responder):
             prs = fetch_pull_requests("o/r", last=1)
 
         suggestions = [c for c in prs[0].inline_comments if c.kind == "suggestion"]
@@ -565,7 +565,7 @@ class TestFetchPullRequests:
                 }
             ],
         )
-        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+        with patch("repo_retrospecter.services.fetcher._run_gh", side_effect=responder):
             prs = fetch_pull_requests("o/r", last=1)
         kinds = [c.kind for c in prs[0].inline_comments]
         assert kinds == ["inline"]
@@ -588,7 +588,7 @@ class TestFetchPullRequests:
                 },
             ],
         )
-        with patch("repo_retrospect.services.fetcher._run_gh", side_effect=responder):
+        with patch("repo_retrospecter.services.fetcher._run_gh", side_effect=responder):
             prs = fetch_pull_requests("o/r", last=1)
         bodies = [c.body for c in prs[0].review_comments]
         assert bodies == ["real content"]
@@ -759,20 +759,20 @@ class TestRunGhExtra:
         ],
     )
     def test_extra_auth_patterns_raise_auth_error(self, stderr: str) -> None:
-        with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+        with patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stderr=stderr, code=1)
             with pytest.raises(AuthError):
                 _run_gh(["api", "x"])
 
     def test_secondary_rate_limit_phrasing(self) -> None:
         stderr = "you have exceeded a secondary rate limit"
-        with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+        with patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stderr=stderr, code=1)
             with pytest.raises(RateLimitError):
                 _run_gh(["api", "x"])
 
     def test_failure_with_only_stdout_uses_stdout_as_detail(self) -> None:
-        with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+        with patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run:
             mock_run.return_value = _completed(stdout="something broke", stderr="", code=1)
             with pytest.raises(FetchError, match="something broke"):
                 _run_gh(["pr", "list"])

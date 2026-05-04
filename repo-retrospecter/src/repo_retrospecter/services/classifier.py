@@ -31,11 +31,11 @@ from typing import TYPE_CHECKING, Any, cast
 from anthropic import Anthropic
 from anthropic import AuthenticationError as _AnthropicAuthError
 
-from repo_retrospect.models.commit import Commit
-from repo_retrospect.models.knowledge import Knowledge
-from repo_retrospect.models.pull_request import PullRequest
-from repo_retrospect.models.theme import CANONICAL_THEMES
-from repo_retrospect.services.exceptions import AuthError, FetchError
+from repo_retrospecter.models.commit import Commit
+from repo_retrospecter.models.knowledge import Knowledge
+from repo_retrospecter.models.pull_request import PullRequest
+from repo_retrospecter.models.theme import CANONICAL_THEMES
+from repo_retrospecter.services.exceptions import AuthError, FetchError
 
 if TYPE_CHECKING:
     from anthropic.types import Message, MessageParam, TextBlockParam

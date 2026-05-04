@@ -6,9 +6,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from repo_retrospect.models.commit import Commit
-from repo_retrospect.models.knowledge import Knowledge
-from repo_retrospect.models.pull_request import PullRequest
+from repo_retrospecter.models.commit import Commit
+from repo_retrospecter.models.knowledge import Knowledge
+from repo_retrospecter.models.pull_request import PullRequest
 
 CACHE_SCHEMA_VERSION = "1"
 

@@ -18,8 +18,8 @@ from pathlib import Path
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
-from repo_retrospect.models.cache import CacheFile
-from repo_retrospect.models.knowledge import Knowledge
+from repo_retrospecter.models.cache import CacheFile
+from repo_retrospecter.models.knowledge import Knowledge
 
 GITHUB_URL_PREFIX: str = "https://github.com/"
 
@@ -36,7 +36,7 @@ class AiRenderer:
 
     def __init__(self) -> None:
         self._env = Environment(
-            loader=PackageLoader("repo_retrospect.services.renderer", "templates"),
+            loader=PackageLoader("repo_retrospecter.services.renderer", "templates"),
             autoescape=select_autoescape(disabled_extensions=("md", "j2")),
             trim_blocks=True,
             lstrip_blocks=True,

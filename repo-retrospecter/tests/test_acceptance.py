@@ -1,4 +1,4 @@
-"""Acceptance tests for repo-retrospect (T009).
+"""Acceptance tests for repo-retrospecter (T009).
 
 Implements docs/test-cases/acceptance.md TC-F1-* / TC-F2-* / TC-F3-* / TC-F4-*.
 External boundaries (``gh`` CLI subprocess, Anthropic SDK) are mocked so the
@@ -22,9 +22,9 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from repo_retrospect.cli.main import cli
-from repo_retrospect.models.cache import CACHE_SCHEMA_VERSION, CacheFile
-from repo_retrospect.models.knowledge import Knowledge
+from repo_retrospecter.cli.main import cli
+from repo_retrospecter.models.cache import CACHE_SCHEMA_VERSION, CacheFile
+from repo_retrospecter.models.knowledge import Knowledge
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SAMPLE_REPO = "koki-n/sample-repo"
@@ -160,7 +160,7 @@ def test_f1_01_fetch_by_count(tmp_path: Path) -> None:
     cache = tmp_path / "cache.json"
     prs = [_make_pr_dict(n) for n in range(1, 31)]
 
-    with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+    with patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run:
         mock_run.side_effect = _make_gh_dispatcher(prs)
         result = CliRunner().invoke(
             cli,
@@ -186,7 +186,7 @@ def test_f1_02_fetch_by_since(tmp_path: Path) -> None:
         for n, day in zip(range(1, 6), (1, 5, 10, 20, 25), strict=False)
     ]
 
-    with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+    with patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run:
         mock_run.side_effect = _make_gh_dispatcher(prs)
         result = CliRunner().invoke(
             cli,
@@ -216,7 +216,7 @@ def test_f1_03_no_auth_error(tmp_path: Path) -> None:
     def gh_unauth(_args, **_kwargs):  # noqa: ANN001
         return _completed(stderr="error: gh authentication required", code=4)
 
-    with patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run:
+    with patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run:
         mock_run.side_effect = gh_unauth
         result = CliRunner().invoke(
             cli,
@@ -235,8 +235,8 @@ def test_f1_03_no_auth_error(tmp_path: Path) -> None:
 
 def _seed_unclassified_cache(cache_path: Path, n: int = 10) -> CacheFile:
     """Write a cache file with N PRs (and no knowledge yet) for generate tests."""
-    from repo_retrospect.cache.store import save as save_cache
-    from repo_retrospect.models.pull_request import PullRequest
+    from repo_retrospecter.cache.store import save as save_cache
+    from repo_retrospecter.models.pull_request import PullRequest
 
     prs = [
         PullRequest(
@@ -270,7 +270,7 @@ def test_f2_01_default_themes(tmp_path: Path) -> None:
     canonical = {"design_decision", "review_rule", "bug_pattern", "refactor", "other"}
 
     with patch(
-        "repo_retrospect.pipeline.generate.classify_pull_requests",
+        "repo_retrospecter.pipeline.generate.classify_pull_requests",
         side_effect=lambda prs, themes=None, **_kw: _knowledge_for(prs, themes),
     ):
         result = CliRunner().invoke(cli, ["generate", "--cache", str(cache_path)])
@@ -291,7 +291,7 @@ def test_f2_02_custom_themes(tmp_path: Path) -> None:
     cache_path = tmp_path / "cache.json"
     _seed_unclassified_cache(cache_path, n=5)
 
-    cfg = tmp_path / "repo-retrospect.config.json"
+    cfg = tmp_path / "repo-retrospecter.config.json"
     cfg.write_text(
         json.dumps({"themes": ["security", "performance", "other"]}),
         encoding="utf-8",
@@ -305,7 +305,7 @@ def test_f2_02_custom_themes(tmp_path: Path) -> None:
         return _knowledge_for(prs, themes)
 
     with patch(
-        "repo_retrospect.pipeline.generate.classify_pull_requests",
+        "repo_retrospecter.pipeline.generate.classify_pull_requests",
         side_effect=fake_classify,
     ):
         result = CliRunner().invoke(
@@ -327,8 +327,8 @@ def test_f2_02_custom_themes(tmp_path: Path) -> None:
 
 def _seed_classified_cache(cache_path: Path, n: int = 10) -> None:
     """Write a cache file already populated with knowledge for renderer tests."""
-    from repo_retrospect.cache.store import save as save_cache
-    from repo_retrospect.models.pull_request import PullRequest
+    from repo_retrospecter.cache.store import save as save_cache
+    from repo_retrospecter.models.pull_request import PullRequest
 
     prs = [
         PullRequest(
@@ -410,8 +410,8 @@ def test_f4_02_ai_citation_required(tmp_path: Path) -> None:
     """TC-F4-02: knowledge without a github.com URL is omitted from AI output."""
     cache_path = tmp_path / "cache.json"
     out = tmp_path / "ai-out.md"
-    from repo_retrospect.cache.store import save as save_cache
-    from repo_retrospect.models.pull_request import PullRequest
+    from repo_retrospecter.cache.store import save as save_cache
+    from repo_retrospecter.models.pull_request import PullRequest
 
     prs = [
         PullRequest(
@@ -475,11 +475,11 @@ def test_f5_01_append_merges_new_items_and_preserves_existing(tmp_path: Path) ->
     """TC-F5-01: ``run --append`` merges new PRs/commits + skips re-classifying existing."""
     from datetime import UTC, datetime as _dt
 
-    from repo_retrospect.cache.store import load as load_cache
-    from repo_retrospect.cache.store import save as save_cache
-    from repo_retrospect.models.cache import CACHE_SCHEMA_VERSION, CacheFile
-    from repo_retrospect.models.commit import Commit
-    from repo_retrospect.models.pull_request import PullRequest
+    from repo_retrospecter.cache.store import load as load_cache
+    from repo_retrospecter.cache.store import save as save_cache
+    from repo_retrospecter.models.cache import CACHE_SCHEMA_VERSION, CacheFile
+    from repo_retrospecter.models.commit import Commit
+    from repo_retrospecter.models.pull_request import PullRequest
 
     cache_path = tmp_path / "cache.json"
     out_md = tmp_path / "h.md"
@@ -567,17 +567,17 @@ def test_f5_01_append_merges_new_items_and_preserves_existing(tmp_path: Path) ->
         ]
 
     with (
-        patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run,
+        patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run,
         patch(
-            "repo_retrospect.pipeline.fetch.fetch_loose_commits",
+            "repo_retrospecter.pipeline.fetch.fetch_loose_commits",
             side_effect=fake_fetch_loose_commits,
         ),
         patch(
-            "repo_retrospect.pipeline.generate.classify_pull_requests",
+            "repo_retrospecter.pipeline.generate.classify_pull_requests",
             side_effect=fake_classify_prs,
         ),
         patch(
-            "repo_retrospect.pipeline.generate.classify_commits",
+            "repo_retrospecter.pipeline.generate.classify_commits",
             side_effect=fake_classify_commits,
         ),
     ):
@@ -640,9 +640,9 @@ def test_perf_01_30pr_within_5min(tmp_path: Path) -> None:
         return _knowledge_for(pull_requests, themes)
 
     with (
-        patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run,
+        patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run,
         patch(
-            "repo_retrospect.pipeline.generate.classify_pull_requests",
+            "repo_retrospecter.pipeline.generate.classify_pull_requests",
             side_effect=fake_classify,
         ),
     ):
@@ -687,15 +687,15 @@ def test_sec_01_api_key_redact(
 
     def fake_classify(pull_requests, themes=None, **_kw):
         # Simulate a verbose path that logs something containing the secret.
-        logging.getLogger("repo_retrospect.services.classifier").info(
+        logging.getLogger("repo_retrospecter.services.classifier").info(
             "calling anthropic with header authorization=Bearer %s", secret
         )
         return _knowledge_for(pull_requests, themes)
 
     with (
-        patch("repo_retrospect.services.fetcher.subprocess.run") as mock_run,
+        patch("repo_retrospecter.services.fetcher.subprocess.run") as mock_run,
         patch(
-            "repo_retrospect.pipeline.generate.classify_pull_requests",
+            "repo_retrospecter.pipeline.generate.classify_pull_requests",
             side_effect=fake_classify,
         ),
         caplog.at_level(logging.DEBUG),
@@ -720,7 +720,7 @@ def test_sec_01_api_key_redact(
     # caplog captures pre-redaction records (filters apply at handler emit
     # time, not propagation), so apply the redact() helper before asserting
     # the *emitted* form matches the policy.
-    from repo_retrospect.cli.logging import redact
+    from repo_retrospecter.cli.logging import redact
 
     for record in caplog.records:
         assert secret not in redact(record.getMessage()), (

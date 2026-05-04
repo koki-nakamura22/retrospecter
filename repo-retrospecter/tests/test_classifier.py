@@ -1,4 +1,4 @@
-"""Unit tests for repo_retrospect.services.classifier."""
+"""Unit tests for repo_retrospecter.services.classifier."""
 
 from __future__ import annotations
 
@@ -12,11 +12,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 from anthropic import AuthenticationError as AnthropicAuthError
 
-from repo_retrospect.models.comment import Comment
-from repo_retrospect.models.knowledge import Knowledge
-from repo_retrospect.models.pull_request import PullRequest
-from repo_retrospect.services import classifier as classifier_mod
-from repo_retrospect.services.classifier import (
+from repo_retrospecter.models.comment import Comment
+from repo_retrospecter.models.knowledge import Knowledge
+from repo_retrospecter.models.pull_request import PullRequest
+from repo_retrospecter.services import classifier as classifier_mod
+from repo_retrospecter.services.classifier import (
     API_KEY_ENV,
     DEFAULT_BATCH_SIZE,
     SYSTEM_PROMPT_HEADER,
@@ -32,7 +32,7 @@ from repo_retrospect.services.classifier import (
     _strip_fences,
     classify_pull_requests,
 )
-from repo_retrospect.services.exceptions import AuthError, FetchError
+from repo_retrospecter.services.exceptions import AuthError, FetchError
 
 # ---------------------------------------------------------------------------
 # helpers / fixtures
@@ -177,7 +177,7 @@ class TestBuildClient:
 
     def test_passes_key_and_timeout_to_anthropic(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(API_KEY_ENV, "sk-ant-fakekey")
-        with patch("repo_retrospect.services.classifier.Anthropic") as ctor:
+        with patch("repo_retrospecter.services.classifier.Anthropic") as ctor:
             ctor.return_value = MagicMock()
             _build_client(timeout=42.0)
             ctor.assert_called_once_with(api_key="sk-ant-fakekey", timeout=42.0)
@@ -638,7 +638,7 @@ class TestClassifyPullRequests:
         # Anthropic constructor so per-call deadlines (decision-defaults.md
         # §タイムアウト) are honored.
         monkeypatch.setenv(API_KEY_ENV, "sk-ant-fakekey")
-        with patch("repo_retrospect.services.classifier.Anthropic") as ctor:
+        with patch("repo_retrospecter.services.classifier.Anthropic") as ctor:
             fake = MagicMock()
             fake.messages.create.return_value = _make_message(json.dumps({"knowledge": []}))
             ctor.return_value = fake
@@ -752,7 +752,7 @@ class TestClassifyClientWiring:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv(API_KEY_ENV, "sk-ant-realish")
-        with patch("repo_retrospect.services.classifier.Anthropic") as ctor:
+        with patch("repo_retrospecter.services.classifier.Anthropic") as ctor:
             fake = MagicMock()
             fake.messages.create.return_value = _make_message(json.dumps({"knowledge": []}))
             ctor.return_value = fake

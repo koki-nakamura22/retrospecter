@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from repo_retrospect.models.theme import Theme
+from repo_retrospecter.models.theme import Theme
 
 
 class Knowledge(BaseModel):

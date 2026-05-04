@@ -14,9 +14,9 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-from repo_retrospect.pipeline.fetch import FetchSummary, run_fetch
-from repo_retrospect.pipeline.generate import GenerateSummary, run_generate
-from repo_retrospect.services.fetcher import GH_TIMEOUT_SEC
+from repo_retrospecter.pipeline.fetch import FetchSummary, run_fetch
+from repo_retrospecter.pipeline.generate import GenerateSummary, run_generate
+from repo_retrospecter.services.fetcher import GH_TIMEOUT_SEC
 
 logger = logging.getLogger(__name__)
 

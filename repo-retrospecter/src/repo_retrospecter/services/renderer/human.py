@@ -19,8 +19,8 @@ from pathlib import Path
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
-from repo_retrospect.models.cache import CacheFile
-from repo_retrospect.models.knowledge import Knowledge
+from repo_retrospecter.models.cache import CacheFile
+from repo_retrospecter.models.knowledge import Knowledge
 
 DEFAULT_TOP_N: int = 5
 DESIGN_DECISION_THEME: str = "design_decision"
@@ -37,7 +37,7 @@ class HumanRenderer:
             raise ValueError(f"top_n must be >= 1, got {top_n}")
         self.top_n = top_n
         self._env = Environment(
-            loader=PackageLoader("repo_retrospect.services.renderer", "templates"),
+            loader=PackageLoader("repo_retrospecter.services.renderer", "templates"),
             # Markdown output: html escaping would corrupt the body.
             autoescape=select_autoescape(disabled_extensions=("md", "j2")),
             trim_blocks=True,

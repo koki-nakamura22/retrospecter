@@ -1,4 +1,4 @@
-"""Unit tests for repo_retrospect.cache.store."""
+"""Unit tests for repo_retrospecter.cache.store."""
 
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from repo_retrospect.cache import store
-from repo_retrospect.cache.store import JSON_INDENT, load, save
-from repo_retrospect.models import (
+from repo_retrospecter.cache import store
+from repo_retrospecter.cache.store import JSON_INDENT, load, save
+from repo_retrospecter.models import (
     CACHE_SCHEMA_VERSION,
     CacheFile,
     Comment,

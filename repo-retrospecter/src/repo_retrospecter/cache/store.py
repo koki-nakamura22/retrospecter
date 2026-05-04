@@ -20,7 +20,7 @@ import json
 import logging
 from pathlib import Path
 
-from repo_retrospect.models.cache import CACHE_SCHEMA_VERSION, CacheFile
+from repo_retrospecter.models.cache import CACHE_SCHEMA_VERSION, CacheFile
 
 logger = logging.getLogger(__name__)
 

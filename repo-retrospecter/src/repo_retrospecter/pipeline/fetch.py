@@ -1,7 +1,7 @@
 """Fetch sub-pipeline (architecture.md §Pipeline レイヤー).
 
-Wraps :mod:`repo_retrospect.services.fetcher` and persists the result via
-:mod:`repo_retrospect.cache.store`. The CLI ``fetch`` subcommand and the
+Wraps :mod:`repo_retrospecter.services.fetcher` and persists the result via
+:mod:`repo_retrospecter.cache.store`. The CLI ``fetch`` subcommand and the
 ``run`` orchestration both delegate here so the I/O contract (cache file
 shape, ``schema_version``, generated_at) lives in one place.
 
@@ -17,12 +17,12 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
-from repo_retrospect.cache.store import load as load_cache
-from repo_retrospect.cache.store import save as save_cache
-from repo_retrospect.models.cache import CACHE_SCHEMA_VERSION, CacheFile
-from repo_retrospect.models.commit import Commit
-from repo_retrospect.models.pull_request import PullRequest
-from repo_retrospect.services.fetcher import (
+from repo_retrospecter.cache.store import load as load_cache
+from repo_retrospecter.cache.store import save as save_cache
+from repo_retrospecter.models.cache import CACHE_SCHEMA_VERSION, CacheFile
+from repo_retrospecter.models.commit import Commit
+from repo_retrospecter.models.pull_request import PullRequest
+from repo_retrospecter.services.fetcher import (
     GH_TIMEOUT_SEC,
     fetch_loose_commits,
     fetch_pull_requests,

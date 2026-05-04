@@ -12,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from repo_retrospect.models.cache import CacheFile
+from repo_retrospecter.models.cache import CacheFile
 
 
 @runtime_checkable

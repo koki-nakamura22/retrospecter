@@ -1,4 +1,4 @@
-"""Unit tests for repo_retrospect.cli (T008)."""
+"""Unit tests for repo_retrospecter.cli (T008)."""
 
 from __future__ import annotations
 
@@ -11,18 +11,18 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from repo_retrospect.cli.logging import (
+from repo_retrospecter.cli.logging import (
     RedactFilter,
     configure_logging,
     redact,
 )
-from repo_retrospect.cli.main import DEFAULT_CACHE_PATH, cli
-from repo_retrospect.config.settings import Settings, load_settings
-from repo_retrospect.models.cache import CACHE_SCHEMA_VERSION, CacheFile
-from repo_retrospect.pipeline.fetch import FetchSummary
-from repo_retrospect.pipeline.generate import GenerateSummary
-from repo_retrospect.pipeline.run import RunSummary
-from repo_retrospect.services.exceptions import AuthError, RateLimitError
+from repo_retrospecter.cli.main import DEFAULT_CACHE_PATH, cli
+from repo_retrospecter.config.settings import Settings, load_settings
+from repo_retrospecter.models.cache import CACHE_SCHEMA_VERSION, CacheFile
+from repo_retrospecter.pipeline.fetch import FetchSummary
+from repo_retrospecter.pipeline.generate import GenerateSummary
+from repo_retrospecter.pipeline.run import RunSummary
+from repo_retrospecter.services.exceptions import AuthError, RateLimitError
 
 
 # ---------------------------------------------------------------------------
@@ -214,7 +214,7 @@ class TestCliHelp:
     def test_version_flag(self) -> None:
         result = CliRunner().invoke(cli, ["--version"])
         assert result.exit_code == 0
-        assert "repo-retrospect" in result.output
+        assert "repo-retrospecter" in result.output
 
     def test_run_help_lists_required_options(self) -> None:
         result = CliRunner().invoke(cli, ["run", "--help"])
@@ -259,7 +259,7 @@ def _make_run_summary() -> RunSummary:
 class TestCmdRun:
     def test_invokes_run_pipeline_with_options(self, tmp_path: Path) -> None:
         cache = tmp_path / "c.json"
-        with patch("repo_retrospect.cli.main.run_pipeline") as mock_run:
+        with patch("repo_retrospecter.cli.main.run_pipeline") as mock_run:
             mock_run.return_value = _make_run_summary()
             result = CliRunner().invoke(
                 cli,
@@ -281,7 +281,7 @@ class TestCmdRun:
         assert "run done" in result.output
 
     def test_since_parsed_to_date(self, tmp_path: Path) -> None:
-        with patch("repo_retrospect.cli.main.run_pipeline") as mock_run:
+        with patch("repo_retrospecter.cli.main.run_pipeline") as mock_run:
             mock_run.return_value = _make_run_summary()
             result = CliRunner().invoke(
                 cli,
@@ -308,7 +308,7 @@ class TestCmdRun:
         assert "--repo" in result.output
 
     def test_default_cache_path_when_omitted(self) -> None:
-        with patch("repo_retrospect.cli.main.run_pipeline") as mock_run:
+        with patch("repo_retrospecter.cli.main.run_pipeline") as mock_run:
             mock_run.return_value = _make_run_summary()
             result = CliRunner().invoke(cli, ["run", "--repo", "o/r"])
         assert result.exit_code == 0, result.output
@@ -319,7 +319,7 @@ class TestCmdRun:
         cfg.write_text(
             '{"repo": "from/config", "themes": ["a", "b"]}', encoding="utf-8"
         )
-        with patch("repo_retrospect.cli.main.run_pipeline") as mock_run:
+        with patch("repo_retrospecter.cli.main.run_pipeline") as mock_run:
             mock_run.return_value = _make_run_summary()
             result = CliRunner().invoke(
                 cli,
@@ -332,7 +332,7 @@ class TestCmdRun:
     def test_cli_repo_overrides_config(self, tmp_path: Path) -> None:
         cfg = tmp_path / "cfg.json"
         cfg.write_text('{"repo": "from/config"}', encoding="utf-8")
-        with patch("repo_retrospect.cli.main.run_pipeline") as mock_run:
+        with patch("repo_retrospecter.cli.main.run_pipeline") as mock_run:
             mock_run.return_value = _make_run_summary()
             result = CliRunner().invoke(
                 cli,
@@ -362,7 +362,7 @@ class TestCmdRun:
     def test_existing_output_blocked_without_force(self, tmp_path: Path) -> None:
         out = tmp_path / "out.md"
         out.write_text("existing", encoding="utf-8")
-        with patch("repo_retrospect.cli.main.run_pipeline") as mock_run:
+        with patch("repo_retrospecter.cli.main.run_pipeline") as mock_run:
             mock_run.return_value = _make_run_summary()
             result = CliRunner().invoke(
                 cli,
@@ -379,7 +379,7 @@ class TestCmdRun:
     def test_existing_output_allowed_with_force(self, tmp_path: Path) -> None:
         out = tmp_path / "out.md"
         out.write_text("existing", encoding="utf-8")
-        with patch("repo_retrospect.cli.main.run_pipeline") as mock_run:
+        with patch("repo_retrospecter.cli.main.run_pipeline") as mock_run:
             mock_run.return_value = _make_run_summary()
             result = CliRunner().invoke(
                 cli,
@@ -394,7 +394,7 @@ class TestCmdRun:
         mock_run.assert_called_once()
 
     def test_auth_error_translated_to_clickexception(self, tmp_path: Path) -> None:
-        with patch("repo_retrospect.cli.main.run_pipeline", side_effect=AuthError("login")):
+        with patch("repo_retrospecter.cli.main.run_pipeline", side_effect=AuthError("login")):
             result = CliRunner().invoke(
                 cli,
                 ["run", "--repo", "o/r", "--cache", str(tmp_path / "c.json")],
@@ -404,7 +404,7 @@ class TestCmdRun:
 
     def test_rate_limit_error_translated(self, tmp_path: Path) -> None:
         with patch(
-            "repo_retrospect.cli.main.run_pipeline",
+            "repo_retrospecter.cli.main.run_pipeline",
             side_effect=RateLimitError("retry in 60s"),
         ):
             result = CliRunner().invoke(
@@ -430,7 +430,7 @@ class TestCmdRun:
 class TestCmdFetch:
     def test_invokes_run_fetch(self, tmp_path: Path) -> None:
         cache = tmp_path / "c.json"
-        with patch("repo_retrospect.cli.main.run_fetch") as mock_fetch:
+        with patch("repo_retrospecter.cli.main.run_fetch") as mock_fetch:
             mock_fetch.return_value = FetchSummary(repo="o/r", cache_path=cache, pr_count=2)
             result = CliRunner().invoke(
                 cli, ["fetch", "--repo", "o/r", "--last", "5", "--cache", str(cache)]
@@ -451,7 +451,7 @@ class TestCmdFetch:
     def test_existing_cache_blocked_without_force(self, tmp_path: Path) -> None:
         cache = tmp_path / "c.json"
         cache.write_text("{}", encoding="utf-8")
-        with patch("repo_retrospect.cli.main.run_fetch") as mock_fetch:
+        with patch("repo_retrospecter.cli.main.run_fetch") as mock_fetch:
             result = CliRunner().invoke(
                 cli, ["fetch", "--repo", "o/r", "--cache", str(cache)]
             )
@@ -481,7 +481,7 @@ class TestCmdGenerate:
     def test_invokes_run_generate(self, tmp_path: Path) -> None:
         cache = tmp_path / "c.json"
         self._make_cache_file(cache)
-        with patch("repo_retrospect.cli.main.run_generate") as mock_gen:
+        with patch("repo_retrospecter.cli.main.run_generate") as mock_gen:
             mock_gen.return_value = GenerateSummary(
                 cache_path=cache,
                 pr_count=1,
@@ -505,7 +505,7 @@ class TestCmdGenerate:
         self._make_cache_file(cache)
         out = tmp_path / "o.md"
         out.write_text("existing", encoding="utf-8")
-        with patch("repo_retrospect.cli.main.run_generate") as mock_gen:
+        with patch("repo_retrospecter.cli.main.run_generate") as mock_gen:
             result = CliRunner().invoke(
                 cli, ["generate", "--cache", str(cache), "--out", str(out)]
             )
@@ -518,7 +518,7 @@ class TestCmdGenerate:
         self._make_cache_file(cache)
         cfg = tmp_path / "cfg.json"
         cfg.write_text('{"themes": ["security", "perf"]}', encoding="utf-8")
-        with patch("repo_retrospect.cli.main.run_generate") as mock_gen:
+        with patch("repo_retrospecter.cli.main.run_generate") as mock_gen:
             mock_gen.return_value = GenerateSummary(
                 cache_path=cache,
                 pr_count=0,

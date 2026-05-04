@@ -1,4 +1,4 @@
-"""Unit tests for repo_retrospect.services.renderer."""
+"""Unit tests for repo_retrospecter.services.renderer."""
 
 from __future__ import annotations
 
@@ -7,17 +7,17 @@ from pathlib import Path
 
 import pytest
 
-from repo_retrospect.models.cache import CACHE_SCHEMA_VERSION, CacheFile
-from repo_retrospect.models.knowledge import Knowledge
-from repo_retrospect.models.pull_request import PullRequest
-from repo_retrospect.services.renderer import (
+from repo_retrospecter.models.cache import CACHE_SCHEMA_VERSION, CacheFile
+from repo_retrospecter.models.knowledge import Knowledge
+from repo_retrospecter.models.pull_request import PullRequest
+from repo_retrospecter.services.renderer import (
     AiRenderer,
     HumanRenderer,
     Renderer,
     get_renderer,
 )
-from repo_retrospect.services.renderer.ai import GITHUB_URL_PREFIX, _has_github_source
-from repo_retrospect.services.renderer.human import (
+from repo_retrospecter.services.renderer.ai import GITHUB_URL_PREFIX, _has_github_source
+from repo_retrospecter.services.renderer.human import (
     DEFAULT_TOP_N,
     DESIGN_DECISION_THEME,
     REVIEW_RULE_THEME,

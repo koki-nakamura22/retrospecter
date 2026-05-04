@@ -1,4 +1,4 @@
-"""Unit tests for repo_retrospect.models (Pydantic v2 domain models)."""
+"""Unit tests for repo_retrospecter.models (Pydantic v2 domain models)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from repo_retrospect.models import (
+from repo_retrospecter.models import (
     CACHE_SCHEMA_VERSION,
     CANONICAL_THEMES,
     CacheFile,
