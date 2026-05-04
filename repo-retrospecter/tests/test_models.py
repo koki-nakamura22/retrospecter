@@ -74,6 +74,29 @@ class TestComment:
         with pytest.raises(ValidationError):
             c.body = "tampered"  # type: ignore[misc]
 
+    def test_rejects_missing_required_field(self) -> None:
+        with pytest.raises(ValidationError):
+            Comment.model_validate(
+                {
+                    "author": "a",
+                    "body": "b",
+                    "created_at": "2026-01-01T00:00:00Z",
+                    "kind": "issue",
+                }
+            )
+
+    def test_rejects_non_datetime_created_at(self) -> None:
+        with pytest.raises(ValidationError):
+            Comment.model_validate(
+                {
+                    "id": "x",
+                    "author": "a",
+                    "body": "b",
+                    "created_at": "not-a-timestamp",
+                    "kind": "issue",
+                }
+            )
+
 
 # ---------------------------------------------------------------------------
 # PullRequest
@@ -123,6 +146,42 @@ class TestPullRequest:
                 }
             )
 
+    def test_rejects_missing_required_field(self) -> None:
+        with pytest.raises(ValidationError):
+            PullRequest.model_validate(
+                {
+                    "number": 1,
+                    "title": "t",
+                    "body": "",
+                    "author": "a",
+                    "url": "https://x/pr/1",
+                }
+            )
+
+    def test_default_comment_lists_are_per_instance(self) -> None:
+        """Guards against the classic mutable-default trap: each instance
+        must own its own list so appending to one PR doesn't leak into others.
+        """
+        pr_a = PullRequest(
+            number=1,
+            title="a",
+            body="",
+            author="x",
+            merged_at=datetime(2026, 1, 1, tzinfo=UTC),
+            url="https://x/pr/1",
+        )
+        pr_b = PullRequest(
+            number=2,
+            title="b",
+            body="",
+            author="x",
+            merged_at=datetime(2026, 1, 2, tzinfo=UTC),
+            url="https://x/pr/2",
+        )
+        pr_a.review_comments.append(_make_comment())
+        assert pr_b.review_comments == []
+        assert pr_a.review_comments is not pr_b.review_comments
+
 
 # ---------------------------------------------------------------------------
 # Theme
@@ -171,6 +230,21 @@ class TestKnowledge:
             themes=["review_rule"],
         )
         assert Knowledge.model_validate_json(k.model_dump_json()) == k
+
+    def test_rejects_extra_field(self) -> None:
+        with pytest.raises(ValidationError):
+            Knowledge.model_validate(
+                {
+                    "rule": "r",
+                    "anti_pattern": "a",
+                    "example": "e",
+                    "confidence": 0.9,
+                }
+            )
+
+    def test_rejects_missing_required_field(self) -> None:
+        with pytest.raises(ValidationError):
+            Knowledge.model_validate({"rule": "r", "anti_pattern": "a"})
 
 
 # ---------------------------------------------------------------------------
@@ -242,3 +316,24 @@ class TestCacheFile:
                     "repo": "owner/repo",
                 }
             )
+
+    def test_explicit_schema_version_is_preserved(self) -> None:
+        """Future cache-version checking (OQ-03) must see the value the file
+        was written with, not the current default."""
+        cache = CacheFile(
+            schema_version="2",
+            generated_at=datetime(2026, 5, 4, tzinfo=UTC),
+            repo="owner/repo",
+        )
+        assert cache.schema_version == "2"
+        restored = CacheFile.model_validate_json(cache.model_dump_json())
+        assert restored.schema_version == "2"
+
+    def test_default_pull_request_list_is_per_instance(self) -> None:
+        a = CacheFile(generated_at=datetime(2026, 5, 4, tzinfo=UTC), repo="o/a")
+        b = CacheFile(generated_at=datetime(2026, 5, 4, tzinfo=UTC), repo="o/b")
+        assert a.pull_requests is not b.pull_requests
+
+    def test_rejects_missing_required_field(self) -> None:
+        with pytest.raises(ValidationError):
+            CacheFile.model_validate({"generated_at": "2026-05-04T00:00:00Z"})
