@@ -141,7 +141,7 @@ Any flag can be put into a JSON or TOML file:
 
 ```toml
 # repo-retrospect.config.toml
-repo = "koki-nakamura22/django-n1-ckecker"
+repo = "OWNER/example-repo"
 last = 30
 last_commits = 50
 themes = ["security", "performance", "design_decision", "other"]
@@ -160,7 +160,7 @@ CLI flags always override the config file.
 ### Human Markdown
 
 ```markdown
-# 振り返り — koki-nakamura22/django-n1-ckecker
+# 振り返り — OWNER/example-repo
 - 対象 PR 数: 5
 - 対象 直 push コミット数: 0
 - 抽出ナレッジ数: 12
