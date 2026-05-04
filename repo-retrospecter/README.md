@@ -200,6 +200,10 @@ Drop the AI file (or the relevant section) into `CLAUDE.md` / a `SKILL.md` and y
 - PII: GitHub `login` is kept; `email` and other identifying fields are stripped before reaching the cache or output.
 - LLM data flow: PR bodies and comment text are sent to Anthropic for classification. Use `--no-loose-commits` and the `themes` config to scope what gets sent. **Don't run this on a repo whose PR contents you cannot share with a third-party LLM provider.**
 
+## Notes
+
+A CLI was a deliberate choice over packaging this as a Claude Code skill. The interesting bits are: the tool collects PR / commit / comment data via `gh` outside the LLM and only the trimmed, normalized payload is sent to Claude — so the heavy raw text never enters an interactive session's context window. The system prompt is held constant per run and reused via prompt caching across batches, which makes repeat invocations and `--append` runs cheap. Both effects also mean the work runs on its own metered Anthropic budget rather than against an interactive Claude Code rate limit, and the same binary fits naturally into cron / CI / multi-user distribution. A skill remains a great fit for one-shot, conversational "summarize last week" questions; this CLI is the better fit when the same retrospective will be re-run, scheduled, or shared.
+
 ## License
 
 TBD.
