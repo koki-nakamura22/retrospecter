@@ -1,0 +1,245 @@
+{
+  "version": 1,
+  "generated_at": "2026-05-04T00:00:00Z",
+  "project_dir": "/home/koki-n/dev/private/tmp",
+  "source_docs": [
+    "docs/product-requirements.md",
+    "docs/architecture.md",
+    "docs/test-cases/acceptance.md",
+    "docs/decision-defaults.md",
+    "docs/open-questions.md",
+    "docs/traceability.md",
+    "docs/adr/0001-python-uv-pipx.md",
+    "docs/adr/0002-gh-cli-wrapper.md",
+    "docs/adr/0003-intermediate-json-cache.md",
+    "docs/adr/0004-renderer-plugin.md"
+  ],
+  "tasks": [
+    {
+      "id": "T001",
+      "title": "プロジェクト初期化 (uv / pyproject / ディレクトリ骨格)",
+      "depends_on": [],
+      "instructions": "ADR-0001 / architecture.md に従い uv ベースのプロジェクトを初期化する。\n- `uv init --package repo-retrospect` 相当の構成を pyproject.toml で作成 (Python >=3.11, ライセンス未設定で可)\n- 依存追加: anthropic / click / pydantic[v2] / jinja2 / rich / httpx (本体), pytest / pytest-vcr / ruff / pyright (dev)\n- ディレクトリ骨格を作成: src/repo_retrospect/{cli,pipeline,services,services/renderer,services/renderer/templates,models,cache,config}/__init__.py\n- ruff / pyright の設定を pyproject.toml に追加 (pyright は strict=true)\n- README.md を最小限 (タイトル + 1段落) で作成\n\n## 失敗時の自己回復方針\n1. 実装中に判断に迷った場合は docs/decision-defaults.md を引いて自動解決し、docs/open-questions.md に「実装中に default 適用」として追記して継続する\n2. default が無い真の未知に当たった場合は task.status を failed にして停止し、人間にエスカレーションする\n3. verification が落ちた場合、post_steps の verification_failed があればそれを実行、無ければ task.status を failed にして停止",
+      "deliverables": [
+        "pyproject.toml",
+        "uv.lock",
+        "src/repo_retrospect/__init__.py",
+        "src/repo_retrospect/cli/__init__.py",
+        "src/repo_retrospect/pipeline/__init__.py",
+        "src/repo_retrospect/services/__init__.py",
+        "src/repo_retrospect/services/renderer/__init__.py",
+        "src/repo_retrospect/models/__init__.py",
+        "src/repo_retrospect/cache/__init__.py",
+        "src/repo_retrospect/config/__init__.py",
+        "README.md"
+      ],
+      "verification": "uv sync && uv run pyright src/ && uv run ruff check src/ tests/",
+      "context_docs": [
+        "docs/architecture.md",
+        "docs/adr/0001-python-uv-pipx.md",
+        "docs/decision-defaults.md"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T002",
+      "title": "ドメインモデル (Pydantic) の定義",
+      "depends_on": ["T001"],
+      "instructions": "architecture.md §services / §キャッシュ配置 と OQ-03 (schema_version) に従い、Pydantic v2 モデルを定義。\n- models/comment.py: Comment (id, author, body, created_at, kind: Literal['issue','review','inline','suggestion'])\n- models/pull_request.py: PullRequest (number, title, body, author, merged_at, url, review_comments: list[Comment], inline_comments: list[Comment])\n- models/theme.py: Theme (Literal['design_decision','review_rule','bug_pattern','refactor','other'] + 拡張用 str 受容)\n- models/knowledge.py: Knowledge (rule, anti_pattern, example, source_urls: list[str], themes: list[Theme])\n- models/cache.py: CacheFile (schema_version: str = '1', generated_at, repo, pull_requests: list[PullRequest], knowledge: list[Knowledge] | None)\n- 全モデルに JSON serializable な型のみ使用\n\n## 失敗時の自己回復方針\n(T001 と同じ — 略)",
+      "deliverables": [
+        "src/repo_retrospect/models/comment.py",
+        "src/repo_retrospect/models/pull_request.py",
+        "src/repo_retrospect/models/theme.py",
+        "src/repo_retrospect/models/knowledge.py",
+        "src/repo_retrospect/models/cache.py"
+      ],
+      "verification": "uv run pyright src/repo_retrospect/models/ && uv run pytest tests/ -k models -q",
+      "context_docs": [
+        "docs/architecture.md",
+        "docs/adr/0003-intermediate-json-cache.md",
+        "docs/open-questions.md",
+        "docs/decision-defaults.md"
+      ],
+      "post_steps": [
+        { "skill": "unit-test-implementation", "trigger_when": "verification_passed" },
+        { "skill": "unit-test-review", "trigger_when": "after:unit-test-implementation" }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T003",
+      "title": "F1: gh CLI ラッパで PR / コメントを取得 (services/fetcher.py)",
+      "depends_on": ["T002"],
+      "instructions": "PRD F1 と architecture.md services/fetcher.py、ADR-0002 に従う。\n- `gh pr list --repo X --state merged --limit N --json ...` と `gh api` を組合せ、PR 本文 / review comment / inline comment / suggestion を取得\n- `--since YYYY-MM-DD` 指定時は `--search 'merged:>=YYYY-MM-DD'` 相当に変換\n- 取得結果を models.PullRequest のリストへ正規化\n- 認証失敗時は AuthError を raise (decision-defaults.md §エラー処理 準拠)\n- レート制限は gh の標準メッセージを尊重し、リトライせずエラー終了 + 待機時間を案内\n- email は除去、author は login のみ保持\n- subprocess timeout は 60s (decision-defaults.md §タイムアウト)\n\n## 失敗時の自己回復方針 (略)",
+      "deliverables": [
+        "src/repo_retrospect/services/fetcher.py",
+        "src/repo_retrospect/services/exceptions.py"
+      ],
+      "verification": "uv run pyright src/repo_retrospect/services/fetcher.py && uv run pytest tests/ -k fetcher -q",
+      "context_docs": [
+        "docs/product-requirements.md",
+        "docs/architecture.md",
+        "docs/adr/0002-gh-cli-wrapper.md",
+        "docs/test-cases/acceptance.md",
+        "docs/decision-defaults.md"
+      ],
+      "post_steps": [
+        { "skill": "unit-test-implementation", "trigger_when": "verification_passed" },
+        { "skill": "unit-test-review", "trigger_when": "after:unit-test-implementation" }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T004",
+      "title": "中間 JSON キャッシュ層 (cache/store.py)",
+      "depends_on": ["T002"],
+      "instructions": "ADR-0003 に従い、CacheFile を読み書きする store を実装。\n- save(path, cache) / load(path) -> CacheFile\n- schema_version 不一致なら警告ログ + ValueError\n- 親ディレクトリは自動作成\n- 上書きは --force 指定時のみ (CLI 側で判定、store は受け取った Path に書く)\n\n## 失敗時の自己回復方針 (略)",
+      "deliverables": [
+        "src/repo_retrospect/cache/store.py"
+      ],
+      "verification": "uv run pyright src/repo_retrospect/cache/ && uv run pytest tests/ -k cache -q",
+      "context_docs": [
+        "docs/architecture.md",
+        "docs/adr/0003-intermediate-json-cache.md",
+        "docs/decision-defaults.md"
+      ],
+      "post_steps": [
+        { "skill": "unit-test-implementation", "trigger_when": "verification_passed" },
+        { "skill": "unit-test-review", "trigger_when": "after:unit-test-implementation" }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T005",
+      "title": "F2: Anthropic SDK でテーマ分類 (services/classifier.py)",
+      "depends_on": ["T002", "T003"],
+      "instructions": "PRD F2 / OQ-02 (デフォルト固定 5 軸 + 設定で上書き) / architecture.md に従う。\n- Anthropic Python SDK で Claude を呼び出し、PR + コメントスレッドからテーマ分類 + Knowledge (Rule / Anti-pattern / Example) を抽出\n- システムプロンプトは prompt caching 対応 (ephemeral cache_control)\n- バッチサイズ 5 PR / 呼び出し (architecture.md §パフォーマンス要件)\n- 分類軸は config から受け取り、未指定なら ['design_decision','review_rule','bug_pattern','refactor','other']\n- 出力 Knowledge は必ず source_urls を持つ (TC-F4-02 準拠)\n- ANTHROPIC_API_KEY 未設定なら AuthError\n- ログから API キーを redact (decision-defaults.md §ログ)\n\n## 失敗時の自己回復方針 (略)",
+      "deliverables": [
+        "src/repo_retrospect/services/classifier.py",
+        "src/repo_retrospect/services/prompts/classifier_system.md"
+      ],
+      "verification": "uv run pyright src/repo_retrospect/services/classifier.py && uv run pytest tests/ -k classifier -q",
+      "context_docs": [
+        "docs/product-requirements.md",
+        "docs/architecture.md",
+        "docs/test-cases/acceptance.md",
+        "docs/decision-defaults.md",
+        "docs/open-questions.md"
+      ],
+      "post_steps": [
+        { "skill": "unit-test-implementation", "trigger_when": "verification_passed" },
+        { "skill": "unit-test-review", "trigger_when": "after:unit-test-implementation" }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T006",
+      "title": "F3 + F4: Renderer (人間向け / AI 向け Markdown) - plugin 化",
+      "depends_on": ["T002", "T005"],
+      "instructions": "PRD F3 / F4 / ADR-0004 (plugin 化) に従う。\n- services/renderer/base.py: Renderer Protocol (render(cache: CacheFile, out_path: Path) -> None)\n- services/renderer/human.py: HumanRenderer — 振り返りノート Markdown (主要設計判断 / 頻出レビュー指摘 Top 章を持つ)\n- services/renderer/ai.py: AiRenderer — Rule / Anti-pattern / Example の構造化、source_urls 必須 (URL 不在の項目はスキップ = TC-F4-02)\n- jinja2 テンプレートを services/renderer/templates/ 配下に配置 (human.md.j2, ai.md.j2)\n- get_renderer(name: Literal['human','ai']) ファクトリを提供 (将来 'skill' 等の追加に備える)\n\n## 失敗時の自己回復方針 (略)",
+      "deliverables": [
+        "src/repo_retrospect/services/renderer/base.py",
+        "src/repo_retrospect/services/renderer/human.py",
+        "src/repo_retrospect/services/renderer/ai.py",
+        "src/repo_retrospect/services/renderer/templates/human.md.j2",
+        "src/repo_retrospect/services/renderer/templates/ai.md.j2",
+        "src/repo_retrospect/services/renderer/__init__.py"
+      ],
+      "verification": "uv run pyright src/repo_retrospect/services/renderer/ && uv run pytest tests/ -k renderer -q",
+      "context_docs": [
+        "docs/product-requirements.md",
+        "docs/architecture.md",
+        "docs/adr/0004-renderer-plugin.md",
+        "docs/test-cases/acceptance.md",
+        "docs/decision-defaults.md"
+      ],
+      "post_steps": [
+        { "skill": "unit-test-implementation", "trigger_when": "verification_passed" },
+        { "skill": "unit-test-review", "trigger_when": "after:unit-test-implementation" }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T007",
+      "title": "Pipeline オーケストレーション (run / fetch / generate)",
+      "depends_on": ["T003", "T004", "T005", "T006"],
+      "instructions": "architecture.md §Pipeline レイヤー に従う。\n- pipeline/fetch.py: fetcher → cache.store.save\n- pipeline/generate.py: cache.store.load → classifier (キャッシュに knowledge 無い時のみ) → renderer (human + ai)\n- pipeline/run.py: fetch → generate を一気通貫\n- 部分失敗 (1 PR の取得/分類失敗) は continue + ログ + 最終サマリで件数報告 (decision-defaults.md §エラー処理)\n\n## 失敗時の自己回復方針 (略)",
+      "deliverables": [
+        "src/repo_retrospect/pipeline/fetch.py",
+        "src/repo_retrospect/pipeline/generate.py",
+        "src/repo_retrospect/pipeline/run.py"
+      ],
+      "verification": "uv run pyright src/repo_retrospect/pipeline/ && uv run pytest tests/ -k pipeline -q",
+      "context_docs": [
+        "docs/architecture.md",
+        "docs/test-cases/acceptance.md",
+        "docs/decision-defaults.md"
+      ],
+      "post_steps": [
+        { "skill": "unit-test-implementation", "trigger_when": "verification_passed" },
+        { "skill": "unit-test-review", "trigger_when": "after:unit-test-implementation" }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T008",
+      "title": "CLI エントリポイント (click) + 設定ローダ",
+      "depends_on": ["T007"],
+      "instructions": "PRD §CLI インターフェース に従い click でサブコマンド run / fetch / generate を実装。\n- cli/main.py: グループ + サブコマンド (--repo, --last, --since, --out, --ai-out, --cache, --config, --force, --verbose, --quiet)\n- config/settings.py: JSON/TOML 設定ファイルローダ (themes 上書き等)\n- pyproject.toml の [project.scripts] に repo-retrospect エントリ登録\n- ログ初期化 (rich 使用) と redact フィルタ\n- decision-defaults.md §命名 §エラー処理 を全て遵守\n\n## 失敗時の自己回復方針 (略)",
+      "deliverables": [
+        "src/repo_retrospect/cli/main.py",
+        "src/repo_retrospect/config/settings.py",
+        "src/repo_retrospect/logging.py"
+      ],
+      "verification": "uv run pyright src/repo_retrospect/cli/ src/repo_retrospect/config/ && uv run repo-retrospect --help && uv run pytest tests/ -k cli -q",
+      "context_docs": [
+        "docs/product-requirements.md",
+        "docs/architecture.md",
+        "docs/decision-defaults.md"
+      ],
+      "post_steps": [
+        { "skill": "unit-test-implementation", "trigger_when": "verification_passed" },
+        { "skill": "unit-test-review", "trigger_when": "after:unit-test-implementation" }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T009",
+      "title": "受け入れテスト本実装 (tests/test_acceptance.py の skip 解除)",
+      "depends_on": ["T008"],
+      "instructions": "tests/test_acceptance.py の pytest.skip を解除し、docs/test-cases/acceptance.md の TC-* を実装。\n- gh CLI と Anthropic API は pytest-vcr / monkeypatch でモック\n- TC-F1-01 / F1-02 / F1-03 / F2-01 / F2-02 / F3-01 / F4-01 / F4-02 を全て緑化\n- TC-PERF-01 / TC-SEC-01 は @pytest.mark.slow を付与しデフォルト除外 (CI で別ジョブ起動を想定)\n- fixture は tests/fixtures/ に匿名化済み JSON を配置\n\n## 失敗時の自己回復方針 (略)",
+      "deliverables": [
+        "tests/test_acceptance.py",
+        "tests/fixtures/sample_pr.json",
+        "tests/fixtures/sample_anthropic_response.json"
+      ],
+      "verification": "uv run pytest tests/test_acceptance.py -v -m 'not slow'",
+      "context_docs": [
+        "docs/test-cases/acceptance.md",
+        "docs/traceability.md",
+        "docs/decision-defaults.md"
+      ],
+      "post_steps": [
+        { "skill": "unit-test-review", "trigger_when": "verification_passed" }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "T010",
+      "title": "GitHub Actions CI セットアップ (matrix 拡張可能)",
+      "depends_on": ["T001", "T009"],
+      "instructions": "architecture.md §CI / CD 方針 に従い GitHub Actions ワークフローを構築。\n- .github/workflows/ci.yml:\n  - トリガ: push / pull_request / workflow_dispatch\n  - matrix: python-version=[3.11, 3.12, 3.13] / os=[ubuntu-latest] (将来 macos-latest 追加できる形で最初から matrix 化)\n  - 共通セットアップは .github/actions/setup-uv/action.yml (composite) に切り出し\n  - ジョブ分割: lint (ruff) / typecheck (pyright) / test (pytest)\n  - uv キャッシュキー: uv.lock のハッシュ\n  - workflow_call で再利用可能化\n- .github/workflows/release.yml はプレースホルダ (TODO コメント) で OK\n- README に CI バッジ追記\n\n## 失敗時の自己回復方針 (略)",
+      "deliverables": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yml",
+        ".github/actions/setup-uv/action.yml"
+      ],
+      "verification": "test -f .github/workflows/ci.yml && grep -q 'matrix:' .github/workflows/ci.yml && grep -q 'python-version' .github/workflows/ci.yml && grep -q 'pyright' .github/workflows/ci.yml && grep -q 'ruff' .github/workflows/ci.yml",
+      "context_docs": [
+        "docs/architecture.md",
+        "docs/decision-defaults.md"
+      ],
+      "status": "pending"
+    }
+  ]
+}
