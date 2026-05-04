@@ -11,3 +11,7 @@ build/
 *.egg-info/
 .env
 .env.local
+
+.auto-implement/
+.claude/scheduled_tasks.lock
+docs/

@@ -6,6 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from repo_retrospect.models.commit import Commit
 from repo_retrospect.models.knowledge import Knowledge
 from repo_retrospect.models.pull_request import PullRequest
 
@@ -18,6 +19,9 @@ class CacheFile(BaseModel):
     `schema_version` is checked on load (OQ-03): mismatched versions
     surface a warning and trigger re-fetch suggestion. `knowledge` is
     optional because `fetch` runs persist PRs before classification.
+
+    `loose_commits` carries default-branch commits that are NOT associated
+    with any merged PR in the same run (PRD F1 + 仕様乖離修正 2026-05-04).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -26,6 +30,7 @@ class CacheFile(BaseModel):
     generated_at: datetime
     repo: str
     pull_requests: list[PullRequest] = Field(default_factory=list[PullRequest])
+    loose_commits: list[Commit] = Field(default_factory=list[Commit])
     knowledge: list[Knowledge] | None = None
 
 

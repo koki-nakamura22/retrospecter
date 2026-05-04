@@ -4,6 +4,7 @@
 
 - **生成日時**: {{ cache.generated_at.isoformat() }}
 - **対象 PR 数**: {{ cache.pull_requests | length }}
+- **対象 直 push コミット数**: {{ cache.loose_commits | length }}
 - **抽出ナレッジ数**: {{ knowledge | length }}
 
 ## 主要設計判断
@@ -55,4 +56,14 @@ _頻出レビュー指摘は抽出されませんでした。_
 {% endfor %}
 {% else %}
 _対象期間に PR がありませんでした。_
+{% endif %}
+
+## PR を経由しないコミット
+
+{% if cache.loose_commits %}
+{% for c in cache.loose_commits %}
+- [`{{ c.sha[:7] }}`]({{ c.url }}) {{ c.message.splitlines()[0] }} — {{ c.author }}
+{% endfor %}
+{% else %}
+_対象期間に PR を経由しないコミットはありませんでした。_
 {% endif %}

@@ -22,7 +22,10 @@ from pathlib import Path
 from repo_retrospect.cache.store import load as load_cache
 from repo_retrospect.cache.store import save as save_cache
 from repo_retrospect.models.cache import CacheFile
-from repo_retrospect.services.classifier import classify_pull_requests
+from repo_retrospect.services.classifier import (
+    classify_commits,
+    classify_pull_requests,
+)
 from repo_retrospect.services.renderer import get_renderer
 
 logger = logging.getLogger(__name__)
@@ -68,9 +71,12 @@ def run_generate(
     classified = False
     if cache.knowledge is None:
         logger.info(
-            "classifying %d PRs (cache had no knowledge)", len(cache.pull_requests)
+            "classifying %d PRs + %d loose commits (cache had no knowledge)",
+            len(cache.pull_requests),
+            len(cache.loose_commits),
         )
         knowledge = classify_pull_requests(cache.pull_requests, themes=themes)
+        knowledge.extend(classify_commits(cache.loose_commits, themes=themes))
         cache = cache.model_copy(
             update={"knowledge": knowledge, "generated_at": datetime.now(tz=UTC)}
         )

@@ -19,7 +19,11 @@ from pathlib import Path
 
 from repo_retrospect.cache.store import save as save_cache
 from repo_retrospect.models.cache import CACHE_SCHEMA_VERSION, CacheFile
-from repo_retrospect.services.fetcher import GH_TIMEOUT_SEC, fetch_pull_requests
+from repo_retrospect.services.fetcher import (
+    GH_TIMEOUT_SEC,
+    fetch_loose_commits,
+    fetch_pull_requests,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +35,7 @@ class FetchSummary:
     repo: str
     cache_path: Path
     pr_count: int
+    loose_commit_count: int = 0
 
 
 def run_fetch(
@@ -39,9 +44,10 @@ def run_fetch(
     cache_path: Path,
     last: int | None = None,
     since: date | str | None = None,
+    include_loose_commits: bool = True,
     timeout: float = GH_TIMEOUT_SEC,
 ) -> FetchSummary:
-    """Fetch merged PRs from ``gh`` and persist a fresh cache file.
+    """Fetch merged PRs (and optionally loose commits) from ``gh`` and persist.
 
     The cache is rewritten in full: previously persisted ``knowledge`` is
     discarded so a subsequent ``generate`` will re-classify against the
@@ -49,31 +55,49 @@ def run_fetch(
     invoke ``services.fetcher`` directly.
     """
     logger.info(
-        "fetch starting: repo=%s last=%s since=%s cache=%s",
+        "fetch starting: repo=%s last=%s since=%s cache=%s loose=%s",
         repo,
         last,
         since,
         cache_path,
+        include_loose_commits,
     )
     pull_requests = fetch_pull_requests(
         repo, last=last, since=since, timeout=timeout
     )
+
+    loose_commits = []
+    if include_loose_commits:
+        collected_pr_numbers = {pr.number for pr in pull_requests}
+        loose_commits = fetch_loose_commits(
+            repo,
+            associated_pr_numbers=collected_pr_numbers,
+            last=last,
+            since=since,
+            timeout=timeout,
+        )
+
     cache = CacheFile(
         schema_version=CACHE_SCHEMA_VERSION,
         generated_at=datetime.now(tz=UTC),
         repo=repo,
         pull_requests=pull_requests,
+        loose_commits=loose_commits,
         knowledge=None,
     )
     save_cache(cache_path, cache)
     logger.info(
-        "fetch done: repo=%s pr_count=%d cache=%s",
+        "fetch done: repo=%s pr_count=%d loose_commits=%d cache=%s",
         repo,
         len(pull_requests),
+        len(loose_commits),
         cache_path,
     )
     return FetchSummary(
-        repo=repo, cache_path=cache_path, pr_count=len(pull_requests)
+        repo=repo,
+        cache_path=cache_path,
+        pr_count=len(pull_requests),
+        loose_commit_count=len(loose_commits),
     )
 
 

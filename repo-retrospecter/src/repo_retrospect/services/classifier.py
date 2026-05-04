@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any, cast
 from anthropic import Anthropic
 from anthropic import AuthenticationError as _AnthropicAuthError
 
+from repo_retrospect.models.commit import Commit
 from repo_retrospect.models.knowledge import Knowledge
 from repo_retrospect.models.pull_request import PullRequest
 from repo_retrospect.models.theme import CANONICAL_THEMES
@@ -368,6 +369,98 @@ def classify_pull_requests(
     return knowledge
 
 
+def _format_commit(commit: Commit) -> str:
+    """Render one loose commit as plain text for the model.
+
+    Loose commits have no comment thread; only sha / author / message are
+    available. The model is told to extract Knowledge in the same shape as
+    for PRs (Rule / Anti-pattern / Example / source URL).
+    """
+    body = commit.message.strip()
+    return "\n".join(
+        [
+            f"Commit {commit.sha[:12]}",
+            f"URL: {commit.url}",
+            f"Author: {commit.author}",
+            f"Committed at: {commit.committed_at.isoformat()}",
+            "Message:",
+            body,
+        ]
+    )
+
+
+def _build_user_message_for_commits(batch: list[Commit], themes: list[str]) -> str:
+    blocks = "\n\n---\n\n".join(_format_commit(c) for c in batch)
+    return (
+        f"Allowed themes: {', '.join(themes)}\n\n"
+        "Loose commits (NOT associated with a merged PR) to analyze:\n\n"
+        f"{blocks}\n\n"
+        'Respond with raw JSON: {"knowledge": [...]} only. Use the commit URL '
+        "as the source URL for each Knowledge record."
+    )
+
+
+def classify_commits(
+    commits: list[Commit],
+    *,
+    themes: list[str] | None = None,
+    client: Anthropic | None = None,
+    model: str = DEFAULT_MODEL,
+    batch_size: int = DEFAULT_BATCH_SIZE,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+    timeout: float = DEFAULT_TIMEOUT_SEC,
+) -> list[Knowledge]:
+    """Classify loose (PR-less) commits and extract Knowledge using Claude.
+
+    Mirrors :func:`classify_pull_requests` but consumes ``Commit`` objects.
+    Used for commits pushed directly to the default branch (no PR review),
+    which still carry intent in their commit message.
+    """
+    if not commits:
+        return []
+    if batch_size < 1:
+        raise ValueError(f"batch_size must be >= 1, got {batch_size}")
+
+    resolved_themes = _resolve_themes(themes)
+    system_blocks = _build_system_blocks(resolved_themes)
+    api_client = client if client is not None else _build_client(timeout)
+
+    knowledge: list[Knowledge] = []
+    for start in range(0, len(commits), batch_size):
+        batch = commits[start : start + batch_size]
+        user_text = _build_user_message_for_commits(batch, resolved_themes)
+        messages: list[MessageParam] = [{"role": "user", "content": user_text}]
+        try:
+            response = api_client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                system=system_blocks,
+                messages=messages,
+            )
+        except _AnthropicAuthError as exc:
+            raise AuthError(
+                f"Anthropic rejected the API key: {_redact(str(exc))}"
+            ) from exc
+        except Exception as exc:  # noqa: BLE001 - normalize to typed error
+            raise FetchError(
+                f"Anthropic call failed for commits "
+                f"{[c.sha[:7] for c in batch]}: {_redact(str(exc))}"
+            ) from exc
+
+        text = _extract_text(response)
+        try:
+            knowledge.extend(_parse_response(text, resolved_themes))
+        except FetchError as exc:
+            logger.warning(
+                "skipping commit batch starting at %s: %s",
+                batch[0].sha[:7],
+                _redact(str(exc)),
+            )
+            continue
+
+    return knowledge
+
+
 __all__ = [
     "API_KEY_ENV",
     "DEFAULT_BATCH_SIZE",
@@ -376,5 +469,6 @@ __all__ = [
     "DEFAULT_TIMEOUT_SEC",
     "SYSTEM_PROMPT_HEADER",
     "SYSTEM_PROMPT_RULES",
+    "classify_commits",
     "classify_pull_requests",
 ]

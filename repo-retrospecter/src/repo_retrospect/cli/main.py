@@ -19,8 +19,11 @@ from datetime import date, datetime
 from pathlib import Path
 
 import click
+from dotenv import load_dotenv
 
 from repo_retrospect import __version__
+
+load_dotenv()
 from repo_retrospect.cli.logging import configure_logging
 from repo_retrospect.config.settings import Settings, load_settings
 from repo_retrospect.pipeline.fetch import run_fetch
@@ -117,6 +120,11 @@ def cli() -> None:
     help="Optional JSON/TOML config file.",
 )
 @click.option("--force", is_flag=True, help="Overwrite existing output files.")
+@click.option(
+    "--no-loose-commits",
+    is_flag=True,
+    help="Skip default-branch commits not associated with any PR.",
+)
 @click.option("--verbose", "-v", is_flag=True, help="Enable DEBUG logging.")
 @click.option("--quiet", "-q", is_flag=True, help="Limit logging to WARN+.")
 def cmd_run(
@@ -128,6 +136,7 @@ def cmd_run(
     cache: Path | None,
     config: Path | None,
     force: bool,
+    no_loose_commits: bool,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -157,6 +166,7 @@ def cmd_run(
             human_out=out_value,
             ai_out=ai_out_value,
             themes=settings.themes,
+            include_loose_commits=not no_loose_commits,
         )
     except AuthError as exc:
         raise click.ClickException(f"gh authentication required: {exc}") from exc
@@ -189,6 +199,11 @@ def cmd_run(
     help="Optional JSON/TOML config file.",
 )
 @click.option("--force", is_flag=True, help="Overwrite existing cache file.")
+@click.option(
+    "--no-loose-commits",
+    is_flag=True,
+    help="Skip default-branch commits not associated with any PR.",
+)
 @click.option("--verbose", "-v", is_flag=True, help="Enable DEBUG logging.")
 @click.option("--quiet", "-q", is_flag=True, help="Limit logging to WARN+.")
 def cmd_fetch(
@@ -198,6 +213,7 @@ def cmd_fetch(
     cache: Path | None,
     config: Path | None,
     force: bool,
+    no_loose_commits: bool,
     verbose: bool,
     quiet: bool,
 ) -> None:
@@ -221,6 +237,7 @@ def cmd_fetch(
             cache_path=cache_value,
             last=last_value,
             since=since_value,
+            include_loose_commits=not no_loose_commits,
         )
     except AuthError as exc:
         raise click.ClickException(f"gh authentication required: {exc}") from exc
@@ -229,7 +246,10 @@ def cmd_fetch(
     except FetchError as exc:
         raise click.ClickException(f"fetch failed: {exc}") from exc
 
-    click.echo(f"fetch done: repo={summary.repo} pr={summary.pr_count} cache={summary.cache_path}")
+    click.echo(
+        f"fetch done: repo={summary.repo} pr={summary.pr_count} "
+        f"loose_commits={summary.loose_commit_count} cache={summary.cache_path}"
+    )
 
 
 @cli.command("generate")

@@ -583,6 +583,7 @@ class TestRunPipeline:
             cache_path=cache_path,
             last=7,
             since=date(2026, 1, 1),
+            include_loose_commits=True,
             timeout=42.0,
         )
         generate_mock.assert_called_once_with(

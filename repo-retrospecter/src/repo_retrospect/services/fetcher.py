@@ -24,6 +24,7 @@ from datetime import date, datetime
 from typing import Any, cast
 
 from repo_retrospect.models.comment import Comment, CommentKind
+from repo_retrospect.models.commit import Commit
 from repo_retrospect.models.pull_request import PullRequest
 from repo_retrospect.services.exceptions import AuthError, FetchError, RateLimitError
 
@@ -300,10 +301,111 @@ def _normalize_prs(
         )
 
 
+def fetch_loose_commits(
+    repo: str,
+    *,
+    associated_pr_numbers: set[int] | None = None,
+    last: int | None = None,
+    since: date | str | None = None,
+    timeout: float = GH_TIMEOUT_SEC,
+) -> list[Commit]:
+    """Fetch default-branch commits that are NOT tied to any collected merged PR.
+
+    For each candidate commit, we ask GitHub which PRs reference it
+    (``gh api repos/X/commits/<sha>/pulls``); if any associated PR number
+    is in ``associated_pr_numbers``, the commit is treated as already
+    represented by a PR and skipped. If no associated PR exists at all,
+    the commit is "loose" and surfaced.
+
+    Args:
+        repo: ``owner/name`` slug.
+        associated_pr_numbers: PR numbers we already collected. Commits
+            whose associated PRs intersect this set are filtered out.
+        last: Take the most-recent ``last`` commits on the default branch.
+            Defaults to ``DEFAULT_LIMIT``.
+        since: ISO date or ``date``; commits older than this are dropped
+            even if returned by ``gh api``.
+        timeout: Per-subprocess timeout in seconds.
+
+    Note:
+        The default branch is whatever ``gh api repos/{repo}/commits``
+        returns first — gh resolves the repo's default ref automatically,
+        so no extra lookup is required.
+    """
+    associated = associated_pr_numbers or set()
+    per_page = last or DEFAULT_LIMIT
+    args = ["api", f"repos/{repo}/commits?per_page={per_page}"]
+    raw = _run_gh(args, timeout=timeout)
+    items = _decode_array(raw)
+
+    boundary: datetime | None = None
+    if since is not None:
+        since_str = since.isoformat() if isinstance(since, date) else since
+        boundary = _parse_dt(f"{since_str}T00:00:00Z")
+
+    out: list[Commit] = []
+    for item in items:
+        sha = item.get("sha")
+        commit_obj_raw = item.get("commit")
+        commit_obj: dict[str, Any] = (
+            cast(dict[str, Any], commit_obj_raw) if isinstance(commit_obj_raw, dict) else {}
+        )
+        message = commit_obj.get("message")
+        author_obj_raw = commit_obj.get("author")
+        author_obj: dict[str, Any] = (
+            cast(dict[str, Any], author_obj_raw) if isinstance(author_obj_raw, dict) else {}
+        )
+        committed_at_raw = author_obj.get("date")
+        url = item.get("html_url") or item.get("url")
+        author_login = _author_login(item.get("author") or item.get("committer"))
+        if not isinstance(sha, str) or not isinstance(message, str):
+            continue
+        if not isinstance(committed_at_raw, str) or not committed_at_raw:
+            continue
+        committed_at = _parse_dt(committed_at_raw)
+        if boundary is not None and committed_at < boundary:
+            continue
+        if _commit_belongs_to_collected_pr(repo, sha, associated, timeout=timeout):
+            continue
+        out.append(
+            Commit(
+                sha=sha,
+                message=message,
+                author=author_login,
+                committed_at=committed_at,
+                url=str(url or ""),
+            )
+        )
+    return out
+
+
+def _commit_belongs_to_collected_pr(
+    repo: str, sha: str, collected: set[int], *, timeout: float
+) -> bool:
+    """Return True if any PR associated with ``sha`` is in ``collected``.
+
+    A commit with no associated PRs is always treated as loose (returns False).
+    """
+    raw = _run_gh(
+        ["api", f"repos/{repo}/commits/{sha}/pulls"],
+        timeout=timeout,
+    )
+    items = _decode_array(raw)
+    if not items:
+        return False
+    for item in items:
+        number = item.get("number")
+        if isinstance(number, int) and number in collected:
+            return True
+    # Has PRs but none are in our collected set -> still loose w.r.t. this run.
+    return False
+
+
 __all__ = [
     "DEFAULT_LIMIT",
     "GH_TIMEOUT_SEC",
     "PR_LIST_FIELDS",
     "SEARCH_LIMIT_DEFAULT",
+    "fetch_loose_commits",
     "fetch_pull_requests",
 ]
