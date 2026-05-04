@@ -1,0 +1,18 @@
+[
+  {
+    "number": 101,
+    "title": "Refactor cache layer to JSON store",
+    "body": "Replace the legacy pickle store with a JSON cache so we can inspect intermediates by hand. Closes #42.",
+    "author": {"login": "alice"},
+    "mergedAt": "2026-04-15T10:00:00Z",
+    "url": "https://github.com/koki-n/sample-repo/pull/101"
+  },
+  {
+    "number": 102,
+    "title": "Fix off-by-one in pagination cursor",
+    "body": "The cursor was advancing by len(items)+1, dropping the last record on every page boundary.",
+    "author": {"login": "bob"},
+    "mergedAt": "2026-04-16T12:00:00Z",
+    "url": "https://github.com/koki-n/sample-repo/pull/102"
+  }
+]

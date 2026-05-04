@@ -1,0 +1,8 @@
+[
+  {
+    "id": 5001,
+    "body": "nit: rename to `cache_path` for symmetry with the loader.\n\n```suggestion\ncache_path = Path(value)\n```",
+    "user": {"login": "dave"},
+    "created_at": "2026-04-15T10:45:00Z"
+  }
+]

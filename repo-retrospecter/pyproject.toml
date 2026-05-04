@@ -71,4 +71,5 @@ minversion = "8.0"
 testpaths = ["tests"]
 markers = [
     "acceptance: end-to-end acceptance tests (slow, require fixtures)",
+    "slow: long-running tests excluded from the default invocation (CI runs them in a separate job)",
 ]
