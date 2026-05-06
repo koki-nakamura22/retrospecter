@@ -31,3 +31,6 @@ __pycache__/
 # --- 本アプリ固有 ---
 .retrospect/
 .env
+
+# --- auto-implement-on-docker の per-task git backup (本リポからは除外) ---
+.git-backup/
