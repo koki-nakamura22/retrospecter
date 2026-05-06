@@ -1,3 +1,5 @@
+[English](README.md) | **日本語**
+
 # session-retrospecter
 
 [![CI](https://github.com/koki-nakamura22/retrospecter/actions/workflows/ci.yml/badge.svg)](https://github.com/koki-nakamura22/retrospecter/actions/workflows/ci.yml)

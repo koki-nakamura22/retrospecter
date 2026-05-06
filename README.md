@@ -19,8 +19,8 @@ PR reviews, commit messages, and AI-coding-agent transcripts are full of project
 | App | Source of history | Status |
 |---|---|---|
 | [repo-retrospecter](./repo-retrospecter) | GitHub PRs / commits / review comments (via `gh`) | Released |
-| session-retrospecter | Claude Code session logs (`~/.claude/projects/*.jsonl`) | Planned |
-| retrospect-core | Shared library: `Knowledge` model, classifier wrapper, cache base, renderer base | Phase 3 (extracted only after the second app is in flight) |
+| [session-retrospecter](./session-retrospecter) | Claude Code session logs (`~/.claude/projects/*.jsonl`) | Released |
+| retrospect-core | Shared library: `Knowledge` model, classifier wrapper, cache base, renderer base | Phase 3 (extracted only after the second app's shared surface stabilizes) |
 
 Each app is independently installable (`pipx install <app>`); the umbrella is a workspace, not a product.
 
@@ -29,14 +29,19 @@ Each app is independently installable (`pipx install <app>`); the umbrella is a 
 ```
 retrospecter/
 ├── README.md
-└── repo-retrospecter/        ← First app (this is the only one today)
-    ├── README.md             ← Detailed usage / install / examples for this app
+├── repo-retrospecter/        ← First app: GitHub history → retrospective + AI knowledge
+│   ├── README.md             ← Detailed usage / install / examples
+│   ├── pyproject.toml
+│   ├── src/repo_retrospecter/
+│   └── tests/
+└── session-retrospecter/     ← Second app: Claude Code session logs → retrospective + AI knowledge
+    ├── README.md
     ├── pyproject.toml
-    ├── src/repo_retrospecter/
+    ├── src/session_retrospecter/
     └── tests/
 ```
 
-When `session-retrospecter` lands, it will sit as a sibling directory. If a `retrospect-core` package is extracted (per the policy below), it will sit at the same level.
+If a `retrospect-core` package is extracted (per the policy below), it will sit at the same level as the apps.
 
 ## Shared core extraction policy
 
@@ -44,9 +49,9 @@ We deliberately do **not** extract a shared `retrospect-core` package up-front. 
 
 The plan progresses through three phases:
 
-1. **Phase 1 (now)** — Single app under the umbrella. No core. The umbrella's only content is this README.
-2. **Phase 2 (public release)** — `repo-retrospecter` is shipped on its own (PyPI / GitHub), still no core.
-3. **Phase 3 (when the second app starts)** — Once `session-retrospecter` is being built and the genuinely-shared parts are visible from two real call sites, `retrospect-core` is extracted as a uv workspace member. This follows the "rule of three" — abstract only when a duplication has been seen at least twice in the wild, not on speculation.
+1. **Phase 1 (done)** — Single app under the umbrella. No core.
+2. **Phase 2 (done)** — `repo-retrospecter` shipped on its own; still no core.
+3. **Phase 3 (current)** — `session-retrospecter` has landed alongside `repo-retrospecter`. The two apps are intentionally still duplicating their shared parts so the genuinely-common surface can be observed from two real call sites before being extracted. Per the "rule of three", `retrospect-core` will only be carved out as a uv workspace member once that duplication has stabilized — not on speculation.
 
 Likely shared surface (kept on the watchlist for Phase 3):
 
@@ -82,6 +87,7 @@ App-specific privacy details (e.g. transcript redaction options) live in each ap
 Each app installs and runs independently. See the per-app README:
 
 - [repo-retrospecter — README](./repo-retrospecter/README.md)
+- [session-retrospecter — README](./session-retrospecter/README.md)
 
 ## Contributing
 
