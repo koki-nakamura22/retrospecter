@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -21,9 +21,9 @@ from session_retrospecter.services.exceptions import FetchError
 # constants / helpers
 # ---------------------------------------------------------------------------
 
-_BASE_DT = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+_BASE_DT = datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC)
 _FROZEN_DT_STR = "2026-06-01T00:00:00+00:00"
-_FROZEN_DT = datetime(2026, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+_FROZEN_DT = datetime(2026, 6, 1, 0, 0, 0, tzinfo=UTC)
 
 
 def _make_target() -> TargetSpec:
@@ -273,9 +273,7 @@ def test_merge_append_knowledge_citation_dedup() -> None:
     existing_k = Knowledge(
         rule="Existing rule", anti_pattern="x", example="y", sources=shared_sources
     )
-    new_k = Knowledge(
-        rule="New rule", anti_pattern="a", example="b", sources=shared_sources
-    )
+    new_k = Knowledge(rule="New rule", anti_pattern="a", example="b", sources=shared_sources)
     unique_k = _make_knowledge(["session://s2#L1"])
 
     existing = _make_cache(knowledge=[existing_k])

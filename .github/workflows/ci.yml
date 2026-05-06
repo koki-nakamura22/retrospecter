@@ -11,83 +11,98 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Monorepo: every job's `run:` step executes from the app's project root.
-# Composite actions don't inherit this — they take `project-dir` explicitly.
-defaults:
-  run:
-    working-directory: repo-retrospecter
+# Monorepo: each job runs against one app via `matrix.app`. The composite
+# action takes `project-dir` explicitly; `run:` steps use `working-directory`
+# from the matrix value so adding a new app is one matrix entry, not a job
+# block.
 
 jobs:
   lint:
-    name: lint (ruff) — py${{ matrix.python-version }} / ${{ matrix.os }}
+    name: lint (ruff) — ${{ matrix.app }} / py${{ matrix.python-version }} / ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        app: [repo-retrospecter, session-retrospecter]
         python-version: ["3.11", "3.12", "3.13"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.app }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup uv + Python
         uses: ./.github/actions/setup-uv
         with:
           python-version: ${{ matrix.python-version }}
-          project-dir: repo-retrospecter
+          project-dir: ${{ matrix.app }}
       - name: ruff check
         run: uv run ruff check src/ tests/
       - name: ruff format --check
         run: uv run ruff format --check src/ tests/
 
   typecheck:
-    name: typecheck (pyright) — py${{ matrix.python-version }} / ${{ matrix.os }}
+    name: typecheck (pyright) — ${{ matrix.app }} / py${{ matrix.python-version }} / ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        app: [repo-retrospecter, session-retrospecter]
         python-version: ["3.11", "3.12", "3.13"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.app }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup uv + Python
         uses: ./.github/actions/setup-uv
         with:
           python-version: ${{ matrix.python-version }}
-          project-dir: repo-retrospecter
+          project-dir: ${{ matrix.app }}
       - name: pyright
         run: uv run pyright
 
   test:
-    name: test (pytest) — py${{ matrix.python-version }} / ${{ matrix.os }}
+    name: test (pytest) — ${{ matrix.app }} / py${{ matrix.python-version }} / ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        app: [repo-retrospecter, session-retrospecter]
         python-version: ["3.11", "3.12", "3.13"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.app }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup uv + Python
         uses: ./.github/actions/setup-uv
         with:
           python-version: ${{ matrix.python-version }}
-          project-dir: repo-retrospecter
+          project-dir: ${{ matrix.app }}
       - name: pytest (default; excludes slow)
         run: uv run pytest -q -m "not slow"
 
   test-slow:
-    name: test (slow) — py${{ matrix.python-version }} / ${{ matrix.os }}
+    name: test (slow) — ${{ matrix.app }} / py${{ matrix.python-version }} / ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        app: [repo-retrospecter, session-retrospecter]
         python-version: ["3.11"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.app }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup uv + Python
         uses: ./.github/actions/setup-uv
         with:
           python-version: ${{ matrix.python-version }}
-          project-dir: repo-retrospecter
+          project-dir: ${{ matrix.app }}
       - name: pytest (slow only)
         run: uv run pytest -q -m "slow"

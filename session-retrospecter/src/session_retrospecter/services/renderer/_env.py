@@ -16,6 +16,7 @@ env: Environment = Environment(
     lstrip_blocks=True,
 )
 
+
 def _surround_backtick(s: str) -> str:
     return f"`{s}`"
 

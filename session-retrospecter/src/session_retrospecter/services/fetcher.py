@@ -38,9 +38,11 @@ _KNOWN_EVENT_TYPES: frozenset[str] = frozenset(
     }
 )
 
+_DEFAULT_PROJECTS_ROOT: Path = Path("~/.claude/projects").expanduser()
+
 
 def discover_projects(
-    root: Path = Path("~/.claude/projects").expanduser(),
+    root: Path = _DEFAULT_PROJECTS_ROOT,
 ) -> list[ProjectDir]:
     """Enumerate subdirectories of root as ProjectDir entries."""
     if not root.exists() or not root.is_dir():

@@ -41,12 +41,12 @@ def _parse_since(since: str | None) -> date | None:
         try:
             days = int(since[:-1])
             return date.today() - timedelta(days=days)
-        except ValueError:
-            raise click.BadParameter(f"不正な since 値: {since!r}", param_hint="'--since'")
+        except ValueError as err:
+            raise click.BadParameter(f"不正な since 値: {since!r}", param_hint="'--since'") from err
     try:
         return date.fromisoformat(since)
-    except ValueError:
-        raise click.BadParameter(f"不正な since 値: {since!r}", param_hint="'--since'")
+    except ValueError as err:
+        raise click.BadParameter(f"不正な since 値: {since!r}", param_hint="'--since'") from err
 
 
 def _build_exclude_set(csv: str | None) -> frozenset[str]:
@@ -146,7 +146,9 @@ def main(ctx: click.Context, verbose: int, quiet: int, config: str | None) -> No
 
 @main.command("run")  # type: ignore[misc]
 @click.option("--project", metavar="DIR", default=None, help="単一プロジェクトディレクトリ")
-@click.option("--session", "session_file", metavar="FILE", default=None, help="単一 JSONL セッションファイル")
+@click.option(
+    "--session", "session_file", metavar="FILE", default=None, help="単一 JSONL セッションファイル"
+)
 @click.option("--all", "all_projects", is_flag=True, default=False, help="全プロジェクト横断")
 @click.option("--since", metavar="7d|YYYY-MM-DD", default=None, help="指定日以降のセッションのみ")
 @click.option(
@@ -156,8 +158,20 @@ def main(ctx: click.Context, verbose: int, quiet: int, config: str | None) -> No
     show_default=True,
     help="プロジェクトルートディレクトリ",
 )
-@click.option("--out", metavar="PATH", default=_DEFAULT_OUT, show_default=True, help="人間向け Markdown 出力先")
-@click.option("--ai-out", metavar="PATH", default=_DEFAULT_AI_OUT, show_default=True, help="AI 向け Knowledge 出力先")
+@click.option(
+    "--out",
+    metavar="PATH",
+    default=_DEFAULT_OUT,
+    show_default=True,
+    help="人間向け Markdown 出力先",
+)
+@click.option(
+    "--ai-out",
+    metavar="PATH",
+    default=_DEFAULT_AI_OUT,
+    show_default=True,
+    help="AI 向け Knowledge 出力先",
+)
 @click.option(
     "--cache",
     metavar="PATH",
@@ -172,10 +186,16 @@ def main(ctx: click.Context, verbose: int, quiet: int, config: str | None) -> No
     show_default=True,
     help="テーマ軸 (カンマ区切り)",
 )
-@click.option("--redact-tokens/--no-redact-tokens", default=True, help="API トークンをマスク (default: ON)")
-@click.option("--redact-paths/--no-redact-paths", default=False, help="ファイルパスをマスク (default: OFF)")
+@click.option(
+    "--redact-tokens/--no-redact-tokens", default=True, help="API トークンをマスク (default: ON)"
+)
+@click.option(
+    "--redact-paths/--no-redact-paths", default=False, help="ファイルパスをマスク (default: OFF)"
+)
 @click.option("--exclude-tools", metavar="csv", default=None, help="除外ツール名 (カンマ区切り)")
-@click.option("--exclude-projects", metavar="csv", default=None, help="除外プロジェクト (カンマ区切り)")
+@click.option(
+    "--exclude-projects", metavar="csv", default=None, help="除外プロジェクト (カンマ区切り)"
+)
 @click.option("--show-paths", is_flag=True, default=False, help="出典 URI を実パスに展開 (AC3)")
 @click.option("--append", is_flag=True, default=False, help="既存 cache に追記 (session_id merge)")
 @click.option("--force", is_flag=True, default=False, help="既存出力ファイルを強制上書き")
@@ -201,7 +221,9 @@ def cmd_run(  # type: ignore[misc]
     _check_api_key()
     from ..pipeline import run as run_pipeline
 
-    spec = _build_target(project, session_file, all_projects, since, projects_root, exclude_projects)
+    spec = _build_target(
+        project, session_file, all_projects, since, projects_root, exclude_projects
+    )
     redact_opts = RedactOptions(
         mask_tokens=redact_tokens,
         mask_paths=redact_paths,
@@ -240,7 +262,9 @@ def cmd_run(  # type: ignore[misc]
 
 @main.command("fetch")  # type: ignore[misc]
 @click.option("--project", metavar="DIR", default=None, help="単一プロジェクトディレクトリ")
-@click.option("--session", "session_file", metavar="FILE", default=None, help="単一 JSONL セッションファイル")
+@click.option(
+    "--session", "session_file", metavar="FILE", default=None, help="単一 JSONL セッションファイル"
+)
 @click.option("--all", "all_projects", is_flag=True, default=False, help="全プロジェクト横断")
 @click.option("--since", metavar="7d|YYYY-MM-DD", default=None, help="指定日以降のセッションのみ")
 @click.option(
@@ -257,10 +281,16 @@ def cmd_run(  # type: ignore[misc]
     show_default=True,
     help="キャッシュファイルパス",
 )
-@click.option("--redact-tokens/--no-redact-tokens", default=True, help="API トークンをマスク (default: ON)")
-@click.option("--redact-paths/--no-redact-paths", default=False, help="ファイルパスをマスク (default: OFF)")
+@click.option(
+    "--redact-tokens/--no-redact-tokens", default=True, help="API トークンをマスク (default: ON)"
+)
+@click.option(
+    "--redact-paths/--no-redact-paths", default=False, help="ファイルパスをマスク (default: OFF)"
+)
 @click.option("--exclude-tools", metavar="csv", default=None, help="除外ツール名 (カンマ区切り)")
-@click.option("--exclude-projects", metavar="csv", default=None, help="除外プロジェクト (カンマ区切り)")
+@click.option(
+    "--exclude-projects", metavar="csv", default=None, help="除外プロジェクト (カンマ区切り)"
+)
 def cmd_fetch(  # type: ignore[misc]
     project: str | None,
     session_file: str | None,
@@ -276,7 +306,9 @@ def cmd_fetch(  # type: ignore[misc]
     """セッションを取得してキャッシュに保存する (LLM 不要)."""
     from ..pipeline import fetch as fetch_pipeline
 
-    spec = _build_target(project, session_file, all_projects, since, projects_root, exclude_projects)
+    spec = _build_target(
+        project, session_file, all_projects, since, projects_root, exclude_projects
+    )
     redact_opts = RedactOptions(
         mask_tokens=redact_tokens,
         mask_paths=redact_paths,
@@ -319,8 +351,20 @@ def cmd_extract(cache: str) -> None:  # type: ignore[misc]
     show_default=True,
     help="キャッシュファイルパス",
 )
-@click.option("--out", metavar="PATH", default=_DEFAULT_OUT, show_default=True, help="人間向け Markdown 出力先")
-@click.option("--ai-out", metavar="PATH", default=_DEFAULT_AI_OUT, show_default=True, help="AI 向け Knowledge 出力先")
+@click.option(
+    "--out",
+    metavar="PATH",
+    default=_DEFAULT_OUT,
+    show_default=True,
+    help="人間向け Markdown 出力先",
+)
+@click.option(
+    "--ai-out",
+    metavar="PATH",
+    default=_DEFAULT_AI_OUT,
+    show_default=True,
+    help="AI 向け Knowledge 出力先",
+)
 @click.option(
     "--themes",
     metavar="csv",
@@ -371,5 +415,3 @@ def cmd_generate(  # type: ignore[misc]
         f" knowledge={summary.knowledge_count}"
         f" classified={summary.classified}"
     )
-
-

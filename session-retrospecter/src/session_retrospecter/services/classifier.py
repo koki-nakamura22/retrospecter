@@ -128,14 +128,18 @@ def _api_call(
 def classify(
     candidates: list[ExtractionCandidate],
     *,
-    themes: list[str] = list(DEFAULT_THEMES),
-    cached_citations: set[str] = set(),
+    themes: list[str] | None = None,
+    cached_citations: set[str] | None = None,
 ) -> list[Knowledge]:
     """ExtractionCandidate[] を LLM 分類して Knowledge[] を返す.
 
     cached_citations に含まれる candidate は LLM call をスキップ.
     Anthropic 429 は RateLimitError, それ以外の API 失敗は WARN ログ + 空リスト返却.
     """
+    if cached_citations is None:
+        cached_citations = set()
+    if themes is None:
+        themes = list(DEFAULT_THEMES)
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise ClassifierError("ANTHROPIC_API_KEY を環境変数か .env に設定してください")

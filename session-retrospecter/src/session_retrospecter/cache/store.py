@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -60,7 +60,7 @@ def merge_append(existing: Cache, new: Cache) -> Cache:
 
     return Cache(
         schema_version=CACHE_SCHEMA_VERSION,
-        generated_at=datetime.now(tz=timezone.utc),
+        generated_at=datetime.now(tz=UTC),
         target=existing.target,
         sessions=merged_sessions,
         candidates=merged_candidates,

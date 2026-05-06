@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from ..cache import store as cache_store
@@ -75,7 +75,7 @@ def run(
             logger.warning("session extract failed, skipping: %s", exc)
 
     new_cache = Cache(
-        generated_at=datetime.now(tz=timezone.utc),
+        generated_at=datetime.now(tz=UTC),
         target=spec,
         sessions=sessions,
         candidates=new_candidates,

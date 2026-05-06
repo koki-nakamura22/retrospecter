@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from ..cache import store as cache_store
@@ -34,7 +34,7 @@ def run(
     event_count = sum(len(s.events) for s in sessions)
 
     cache = Cache(
-        generated_at=datetime.now(tz=timezone.utc),
+        generated_at=datetime.now(tz=UTC),
         target=spec,
         sessions=sessions,
     )

@@ -240,9 +240,7 @@ def test_redact_event_does_not_mutate_original() -> None:
 
 def test_redact_event_content_immutability() -> None:
     original_input = {"command": "echo hello"}
-    ev = _make_event(
-        content=[{"type": "tool_use", "name": "Bash", "input": dict(original_input)}]
-    )
+    ev = _make_event(content=[{"type": "tool_use", "name": "Bash", "input": dict(original_input)}])
     opts = RedactOptions(exclude_tools=frozenset({"Bash"}))
 
     redact_event(ev, opts)
@@ -359,9 +357,7 @@ def test_redact_event_none_text_passthrough() -> None:
 
 
 def test_redact_event_content_block_text_field_redacted() -> None:
-    ev = _make_event(
-        content=[{"type": "text", "text": "Found key sk-ant-abc123XYZ_456 in logs"}]
-    )
+    ev = _make_event(content=[{"type": "text", "text": "Found key sk-ant-abc123XYZ_456 in logs"}])
     opts = RedactOptions(mask_tokens=True)
 
     result = redact_event(ev, opts)

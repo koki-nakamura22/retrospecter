@@ -1,4 +1,4 @@
-"""services.redactor — token / path / tool 除外で SessionEvent を安全化する (threat-model T-01〜T-03)."""
+"""services.redactor — token / path / tool 除外で SessionEvent を安全化 (threat T-01〜T-03)."""
 
 from __future__ import annotations
 

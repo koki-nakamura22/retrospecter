@@ -159,10 +159,14 @@ def test_run_existing_output_no_force_exits_nonzero(
         main,
         [
             "run",
-            "--session", str(session_file),
-            "--cache", str(cache_path),
-            "--out", str(out),
-            "--ai-out", str(ai_out),
+            "--session",
+            str(session_file),
+            "--cache",
+            str(cache_path),
+            "--out",
+            str(out),
+            "--ai-out",
+            str(ai_out),
         ],
     )
 
@@ -197,9 +201,12 @@ def test_generate_with_force_overwrites_existing_output(
         main,
         [
             "generate",
-            "--cache", str(cache_path),
-            "--out", str(out),
-            "--ai-out", str(ai_out),
+            "--cache",
+            str(cache_path),
+            "--out",
+            str(out),
+            "--ai-out",
+            str(ai_out),
             "--force",
         ],
     )
@@ -236,9 +243,12 @@ def test_generate_with_append_skips_overwrite_guard(
         main,
         [
             "generate",
-            "--cache", str(cache_path),
-            "--out", str(out),
-            "--ai-out", str(ai_out),
+            "--cache",
+            str(cache_path),
+            "--out",
+            str(out),
+            "--ai-out",
+            str(ai_out),
         ],
     )
 
@@ -247,9 +257,12 @@ def test_generate_with_append_skips_overwrite_guard(
         main,
         [
             "generate",
-            "--cache", str(cache_path),
-            "--out", str(out),
-            "--ai-out", str(ai_out),
+            "--cache",
+            str(cache_path),
+            "--out",
+            str(out),
+            "--ai-out",
+            str(ai_out),
             "--append",
         ],
     )
@@ -275,9 +288,12 @@ def test_generate_without_api_key_exits_with_error(
         main,
         [
             "generate",
-            "--cache", str(tmp_path / "cache.json"),
-            "--out", str(tmp_path / "out.md"),
-            "--ai-out", str(tmp_path / "ai.md"),
+            "--cache",
+            str(tmp_path / "cache.json"),
+            "--out",
+            str(tmp_path / "out.md"),
+            "--ai-out",
+            str(tmp_path / "ai.md"),
         ],
     )
 
@@ -300,10 +316,14 @@ def test_run_without_api_key_exits_with_error(
         main,
         [
             "run",
-            "--session", str(session_file),
-            "--cache", str(tmp_path / "cache.json"),
-            "--out", str(tmp_path / "out.md"),
-            "--ai-out", str(tmp_path / "ai.md"),
+            "--session",
+            str(session_file),
+            "--cache",
+            str(tmp_path / "cache.json"),
+            "--out",
+            str(tmp_path / "out.md"),
+            "--ai-out",
+            str(tmp_path / "ai.md"),
         ],
     )
 
@@ -312,9 +332,7 @@ def test_run_without_api_key_exits_with_error(
     assert "ANTHROPIC_API_KEY" in result.output
 
 
-def test_fetch_without_api_key_succeeds(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_fetch_without_api_key_succeeds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # Arrange — LLM 不要の fetch は API key 不在でも動く
     session_file = tmp_path / "project" / "sess.jsonl"
     _write_jsonl(session_file, _CORRECTION_EVENTS)
@@ -332,9 +350,7 @@ def test_fetch_without_api_key_succeeds(
     assert "fetch 完了" in result.output
 
 
-def test_extract_without_api_key_succeeds(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_extract_without_api_key_succeeds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # Arrange
     from session_retrospecter.pipeline import fetch
 
@@ -398,9 +414,12 @@ def test_since_relative_days_builds_correct_target_spec(
         main,
         [
             "fetch",
-            "--session", str(session_file),
-            "--cache", str(tmp_path / "cache.json"),
-            "--since", "7d",
+            "--session",
+            str(session_file),
+            "--cache",
+            str(tmp_path / "cache.json"),
+            "--since",
+            "7d",
         ],
     )
 
@@ -426,9 +445,12 @@ def test_since_absolute_date_builds_correct_target_spec(
         main,
         [
             "fetch",
-            "--session", str(session_file),
-            "--cache", str(tmp_path / "cache.json"),
-            "--since", "2024-01-15",
+            "--session",
+            str(session_file),
+            "--cache",
+            str(tmp_path / "cache.json"),
+            "--since",
+            "2024-01-15",
         ],
     )
 
@@ -453,9 +475,12 @@ def test_since_zero_days_returns_today(
         main,
         [
             "fetch",
-            "--session", str(session_file),
-            "--cache", str(tmp_path / "cache.json"),
-            "--since", "0d",
+            "--session",
+            str(session_file),
+            "--cache",
+            str(tmp_path / "cache.json"),
+            "--since",
+            "0d",
         ],
     )
 
@@ -475,9 +500,12 @@ def test_since_invalid_format_exits_with_error(tmp_path: Path) -> None:
         main,
         [
             "fetch",
-            "--session", str(session_file),
-            "--cache", str(tmp_path / "cache.json"),
-            "--since", "not-a-date",
+            "--session",
+            str(session_file),
+            "--cache",
+            str(tmp_path / "cache.json"),
+            "--since",
+            "not-a-date",
         ],
     )
 
@@ -517,8 +545,10 @@ def test_exclude_projects_decode_form_normalised_to_encoded(
         [
             "fetch",
             "--all",
-            "--cache", str(tmp_path / "cache.json"),
-            "--exclude-projects", "/home/user/secret",
+            "--cache",
+            str(tmp_path / "cache.json"),
+            "--exclude-projects",
+            "/home/user/secret",
         ],
     )
 
@@ -541,8 +571,10 @@ def test_exclude_projects_encoded_form_passed_through(
         [
             "fetch",
             "--all",
-            "--cache", str(tmp_path / "cache.json"),
-            "--exclude-projects", "-home-user-secret",
+            "--cache",
+            str(tmp_path / "cache.json"),
+            "--exclude-projects",
+            "-home-user-secret",
         ],
     )
 
@@ -565,8 +597,10 @@ def test_exclude_projects_multiple_csv_accepted(
         [
             "fetch",
             "--all",
-            "--cache", str(tmp_path / "cache.json"),
-            "--exclude-projects", "/home/user/secret,-home-other-proj",
+            "--cache",
+            str(tmp_path / "cache.json"),
+            "--exclude-projects",
+            "/home/user/secret,-home-other-proj",
         ],
     )
 
@@ -607,9 +641,12 @@ def test_show_paths_expands_session_uris_in_output(
         main,
         [
             "generate",
-            "--cache", str(cache_path),
-            "--out", str(out),
-            "--ai-out", str(ai_out),
+            "--cache",
+            str(cache_path),
+            "--out",
+            str(out),
+            "--ai-out",
+            str(ai_out),
             "--show-paths",
             "--force",
         ],

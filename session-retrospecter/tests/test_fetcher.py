@@ -100,8 +100,7 @@ def test_read_session_continues_after_bad_line(tmp_path: Path) -> None:
     """bad line の後の行も正常に読み込まれる."""
     session_file = tmp_path / "s.jsonl"
     session_file.write_text(
-        "GARBAGE\n"
-        '{"type": "user", "text": "recovered"}\n',
+        'GARBAGE\n{"type": "user", "text": "recovered"}\n',
         encoding="utf-8",
     )
 

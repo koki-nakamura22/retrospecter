@@ -42,7 +42,8 @@ def run(
         if conflicts:
             paths_str = ", ".join(str(p) for p in conflicts)
             raise FileExistsError(
-                f"出力ファイルが既に存在します (--force または --append を指定してください): {paths_str}"
+                "出力ファイルが既に存在します "
+                f"(--force または --append を指定してください): {paths_str}"
             )
 
     cache = cache_store.load(cache_path)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -37,7 +37,7 @@ def knowledge_correction() -> Knowledge:
 @pytest.fixture()
 def cache_from_correction_en(knowledge_correction: Knowledge) -> Cache:
     return Cache(
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         target=TargetSpec(mode="all"),
         knowledge=[knowledge_correction],
     )
@@ -46,7 +46,7 @@ def cache_from_correction_en(knowledge_correction: Knowledge) -> Cache:
 @pytest.fixture()
 def empty_cache() -> Cache:
     return Cache(
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         target=TargetSpec(mode="all"),
         knowledge=[],
     )
@@ -133,11 +133,9 @@ def test_human_correction_appears_in_correction_section(
     result = human.render(cache_from_correction_en)
 
     lines = result.splitlines()
-    correction_idx = next(
-        i for i, l in enumerate(lines) if "ユーザーが訂正した判断" in l
-    )
-    validated_idx = next(i for i, l in enumerate(lines) if "検証済みパターン" in l)
-    rule_idx = next(i for i, l in enumerate(lines) if _RULE in l)
+    correction_idx = next(i for i, line in enumerate(lines) if "ユーザーが訂正した判断" in line)
+    validated_idx = next(i for i, line in enumerate(lines) if "検証済みパターン" in line)
+    rule_idx = next(i for i, line in enumerate(lines) if _RULE in line)
 
     assert correction_idx < rule_idx < validated_idx
 
@@ -158,7 +156,7 @@ def test_human_non_correction_theme_in_correct_section() -> None:
         themes=["validated_pattern"],
     )
     cache = Cache(
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         target=TargetSpec(mode="all"),
         knowledge=[k],
     )
@@ -166,9 +164,9 @@ def test_human_non_correction_theme_in_correct_section() -> None:
     result = human.render(cache)
 
     lines = result.splitlines()
-    validated_idx = next(i for i, l in enumerate(lines) if "検証済みパターン" in l)
-    rule_idx = next(i for i, l in enumerate(lines) if "テスト rule" in l)
-    tool_idx = next(i for i, l in enumerate(lines) if "ツール落とし穴" in l)
+    validated_idx = next(i for i, line in enumerate(lines) if "検証済みパターン" in line)
+    rule_idx = next(i for i, line in enumerate(lines) if "テスト rule" in line)
+    tool_idx = next(i for i, line in enumerate(lines) if "ツール落とし穴" in line)
 
     assert validated_idx < rule_idx < tool_idx
 
@@ -190,7 +188,7 @@ def test_ai_multiple_knowledge_items() -> None:
         for i in range(3)
     ]
     cache = Cache(
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         target=TargetSpec(mode="all"),
         knowledge=items,
     )
@@ -219,7 +217,7 @@ def test_human_multiple_sources_all_appear() -> None:
         themes=["correction"],
     )
     cache = Cache(
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         target=TargetSpec(mode="all"),
         knowledge=[k],
     )
@@ -241,7 +239,7 @@ def test_ai_multiple_sources_all_appear() -> None:
         themes=["correction"],
     )
     cache = Cache(
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         target=TargetSpec(mode="all"),
         knowledge=[k],
     )
@@ -266,7 +264,7 @@ def test_human_other_theme_not_in_fixed_sections() -> None:
         themes=["other"],
     )
     cache = Cache(
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         target=TargetSpec(mode="all"),
         knowledge=[k],
     )
@@ -286,7 +284,7 @@ def test_ai_other_theme_knowledge_still_appears() -> None:
         themes=["other"],
     )
     cache = Cache(
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         target=TargetSpec(mode="all"),
         knowledge=[k],
     )
@@ -303,7 +301,7 @@ def test_ai_other_theme_knowledge_still_appears() -> None:
 
 def test_human_none_knowledge_returns_all_placeholders() -> None:
     cache = Cache(
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         target=TargetSpec(mode="all"),
         knowledge=None,
     )
@@ -315,7 +313,7 @@ def test_human_none_knowledge_returns_all_placeholders() -> None:
 
 def test_ai_none_knowledge_returns_header_only() -> None:
     cache = Cache(
-        generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 1, 1, tzinfo=UTC),
         target=TargetSpec(mode="all"),
         knowledge=None,
     )

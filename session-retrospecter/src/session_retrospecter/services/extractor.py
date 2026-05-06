@@ -25,9 +25,7 @@ CORRECTION_LEXICON: frozenset[str] = frozenset(
 APPROVAL_LEXICON: frozenset[str] = frozenset(
     {"yes", "perfect", "exactly", "good", "その通り", "OK"}
 )
-DECISION_KEYWORDS: frozenset[str] = frozenset(
-    {"because", "since", "だから", "理由", "trade-off"}
-)
+DECISION_KEYWORDS: frozenset[str] = frozenset({"because", "since", "だから", "理由", "trade-off"})
 
 DECISION_MIN_CHARS: int = 800
 APPROVAL_MAX_CHARS: int = 80
@@ -75,9 +73,7 @@ def _lexicon_hits_in_order(lexicon: frozenset[str], text: str) -> list[str]:
     )
 
 
-def _find_preceding_assistant(
-    events: list[SessionEvent], idx: int
-) -> SessionEvent | None:
+def _find_preceding_assistant(events: list[SessionEvent], idx: int) -> SessionEvent | None:
     """Return the nearest preceding assistant event, skipping non-turn event types."""
     for j in range(idx - 1, -1, -1):
         ev_type = events[j].type
@@ -195,10 +191,7 @@ def extract(session: Session) -> list[ExtractionCandidate]:
                 if prev_ev.type != "assistant" or not prev_ev.content:
                     continue
                 for b in prev_ev.content:
-                    if (
-                        b.get("type") == "tool_use"
-                        and b.get("id") == tool_use_id
-                    ):
+                    if b.get("type") == "tool_use" and b.get("id") == tool_use_id:
                         failing_asst = prev_ev
                         failed_name = str(b.get("name", ""))
                         failed_input = b.get("input")
