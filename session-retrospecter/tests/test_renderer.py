@@ -12,7 +12,7 @@ from session_retrospecter.models.knowledge import Knowledge
 from session_retrospecter.models.target import TargetSpec
 from session_retrospecter.services.renderer import ai, human
 
-_GOLDEN_DIR = Path(__file__).parent.parent / "docs" / "contracts" / "fixtures" / "expected"
+_GOLDEN_DIR = Path(__file__).parent / "fixtures" / "expected"
 
 _RULE = "不要な try/except を全関数に追加しない"
 _ANTI = "全関数を try/except でラップする防御的プログラミング"

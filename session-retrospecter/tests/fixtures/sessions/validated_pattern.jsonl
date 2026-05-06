@@ -1,0 +1,3 @@
+{"type": "user", "text": "Should I use middleware for auth redirects?", "lineNo": 3}
+{"type": "assistant", "text": "Used middleware for redirects (not _redirects).", "lineNo": 4}
+{"type": "user", "text": "perfect", "lineNo": 5}

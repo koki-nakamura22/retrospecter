@@ -1,0 +1,3 @@
+{"type": "assistant", "content": [{"type": "tool_use", "id": "a1", "name": "Bash", "input": {"command": "ls /nonexistent"}}], "lineNo": 10}
+{"type": "user", "content": [{"type": "tool_result", "tool_use_id": "a1", "is_error": true, "content": "ls: cannot access '/nonexistent': No such file or directory"}], "lineNo": 11}
+{"type": "assistant", "content": [{"type": "tool_use", "id": "a2", "name": "Bash", "input": {"command": "ls /home"}}], "lineNo": 12}

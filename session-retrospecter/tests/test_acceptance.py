@@ -28,12 +28,7 @@ _CITATION_RE = re.compile(r"session://[A-Za-z0-9_\-]+#L\d+")
 _CASSETTE_DIR = str(Path(__file__).parent / "fixtures" / "cassettes")
 
 _SAMPLE_SECRETS_JSONL = (
-    Path(__file__).parent.parent
-    / "docs"
-    / "contracts"
-    / "fixtures"
-    / "sessions"
-    / "sample_with_secrets.jsonl"
+    Path(__file__).parent / "fixtures" / "sessions" / "sample_with_secrets.jsonl"
 )
 
 # ---------------------------------------------------------------------------
