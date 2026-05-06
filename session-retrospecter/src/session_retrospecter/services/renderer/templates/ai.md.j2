@@ -1,0 +1,12 @@
+# Knowledge
+{% for k in knowledge %}
+
+## Knowledge: {{ k.rule }}
+
+- **Rule**: {{ k.rule }}
+- **Anti-pattern**: {{ k.anti_pattern }}
+- **Example**: {{ k.example }}
+- **Sources**:
+{% for src in k.sources %}  - `{{ src }}`
+{% endfor %}- **Themes**: {{ k.themes | map("surround_backtick") | join(", ") }}
+{% endfor %}

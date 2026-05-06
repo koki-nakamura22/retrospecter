@@ -1,0 +1,31 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Content-Type:
+      - application/json
+    method: POST
+    uri: https://api.anthropic.com/v1/messages
+  response:
+    body:
+      string: "{\"id\":\"msg_02AbCdEf\",\"type\":\"message\",\"role\":\"assistant\"\
+        ,\"content\":[{\"type\":\"text\",\"text\":\"[{\\\"rule\\\":\\\"Confirm good\
+        \ patterns when the user validates them.\\\",\\\"anti_pattern\\\":\\\"Ignore\
+        \ user confirmation and continue without acknowledgment.\\\",\\\"example\\\
+        \":\\\"User said exactly, so the assistant noted the validated pattern.\\\"\
+        ,\\\"sources\\\":[\\\"session://test-session#L10\\\"],\\\"themes\\\":[\\\"validated_pattern\\\
+        \"]},{\\\"rule\\\":\\\"When a decision involves trade-offs, document the reasoning.\\\
+        \",\\\"anti_pattern\\\":\\\"Make significant decisions without explaining the\
+        \ rationale.\\\",\\\"example\\\":\\\"The assistant chose middleware and explained\
+        \ the trade-off.\\\",\\\"sources\\\":[\\\"session://test-session#L20\\\"],\\\
+        \"themes\\\":[\\\"decision_rationale\\\"]}]\"}],\"model\":\"claude-opus-4-5-20241101\"\
+        ,\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\"\
+        :400,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":400,\"output_tokens\"\
+        :120}}"
+    headers:
+      Content-Type:
+      - application/json
+    status:
+      code: 200
+      message: OK
+version: 1

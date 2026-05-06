@@ -1,0 +1,67 @@
+[project]
+name = "session-retrospecter"
+version = "0.1.0"
+description = "Distill judgment signals from Claude Code session logs"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "session-retrospecter contributors" }]
+dependencies = [
+    "anthropic>=0.40,<1.0",
+    "click>=8.1,<9.0",
+    "pydantic>=2.5,<3.0",
+    "jinja2>=3.1,<4.0",
+    "rich>=13.0,<15.0",
+    "httpx>=0.27,<1.0",
+    "python-dotenv>=1.0,<2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0,<9.0",
+    "pytest-vcr>=1.0,<2.0",
+    "ruff>=0.6,<1.0",
+    "pyright>=1.1,<2.0",
+    "freezegun>=1.5,<2.0",
+]
+
+[project.scripts]
+session-retrospecter = "session_retrospecter.cli.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/session_retrospecter"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "N", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.11"
+strict = ["src/**/*.py"]
+reportMissingImports = true
+reportMissingTypeStubs = false
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+markers = [
+    "acceptance: end-to-end acceptance tests (slow, require fixtures)",
+    "slow: long-running tests excluded from the default invocation",
+]

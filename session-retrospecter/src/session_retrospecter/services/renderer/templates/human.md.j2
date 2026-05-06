@@ -1,0 +1,57 @@
+# Session Retrospective
+
+## ユーザーが訂正した判断
+{% if knowledge_by_theme.correction %}
+{% for k in knowledge_by_theme.correction %}
+
+### {{ k.rule }}
+
+{{ k.example }}
+
+{% for src in k.sources %}- 出典: `{{ src }}`
+{% endfor %}{% endfor %}{% else %}
+
+(該当なし)
+{% endif %}
+
+## 検証済みパターン
+{% if knowledge_by_theme.validated_pattern %}
+{% for k in knowledge_by_theme.validated_pattern %}
+
+### {{ k.rule }}
+
+{{ k.example }}
+
+{% for src in k.sources %}- 出典: `{{ src }}`
+{% endfor %}{% endfor %}{% else %}
+
+(該当なし)
+{% endif %}
+
+## ツール落とし穴
+{% if knowledge_by_theme.tool_pitfall %}
+{% for k in knowledge_by_theme.tool_pitfall %}
+
+### {{ k.rule }}
+
+{{ k.example }}
+
+{% for src in k.sources %}- 出典: `{{ src }}`
+{% endfor %}{% endfor %}{% else %}
+
+(該当なし)
+{% endif %}
+
+## 主要 decision
+{% if knowledge_by_theme.decision_rationale %}
+{% for k in knowledge_by_theme.decision_rationale %}
+
+### {{ k.rule }}
+
+{{ k.example }}
+
+{% for src in k.sources %}- 出典: `{{ src }}`
+{% endfor %}{% endfor %}{% else %}
+
+(該当なし)
+{% endif %}
